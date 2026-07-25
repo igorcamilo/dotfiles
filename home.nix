@@ -15,6 +15,8 @@
   home.homeDirectory = "/home/igor";
   home.stateVersion = "26.05";
 
+  xdg.autostart.enable = true;
+
   # Secret Service integration: lets applications, including
   # NetworkManager, store and retrieve secrets through KeePassXC instead
   # of gnome-keyring or KWallet. See README.md.
