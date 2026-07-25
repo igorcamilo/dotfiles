@@ -39,10 +39,6 @@
   # lock screen). Wallpaper is drawn by Quickshell itself (a background
   # layer-shell surface), so no separate wallpaper daemon is installed.
   programs.hyprland.enable = true;
-  environment.systemPackages = with pkgs; [
-    quickshell
-    matugen
-  ];
   qt.enable = true;
   programs.dconf.enable = true;
 
@@ -52,9 +48,18 @@
   # user's normal session below. The greeter runs as its own system
   # user (created automatically by this module), so its files are
   # published system-wide via environment.etc rather than home-manager.
-  environment.etc."greetd/hyprland.conf".source = ./dotfiles/hypr/greeter.conf;
-  environment.etc."greetd/quickshell".source = ./dotfiles/quickshell/greeter;
-  environment.etc."greetd/shared".source = ./dotfiles/quickshell/shared;
+  environment = {
+    systemPackages = with pkgs; [
+      quickshell
+      matugen
+    ];
+    etc = {
+      "greetd/hyprland.conf".source = ./dotfiles/hypr/greeter.conf;
+      "greetd/quickshell".source = ./dotfiles/quickshell/greeter;
+      "greetd/shared".source = ./dotfiles/quickshell/shared;
+    };
+  };
+
   services.greetd = {
     enable = true;
     settings.default_session = {

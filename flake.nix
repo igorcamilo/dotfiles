@@ -72,25 +72,28 @@
             targetHost = name;
             targetSystem = host.system;
           };
-          modules = commonModules ++ [
-            host.module
-            (
-              { config, ... }:
-              {
-                nixpkgs.hostPlatform = lib.mkDefault host.system;
-                assertions = [
-                  {
-                    assertion = config.networking.hostName == name;
-                    message = "Host ${name} must set networking.hostName to ${name}.";
-                  }
-                  {
-                    assertion = config.nixpkgs.hostPlatform.system == host.system;
-                    message = "Host ${name} must use ${host.system}.";
-                  }
-                ];
-              }
-            )
-          ] ++ extraModules;
+          modules =
+            commonModules
+            ++ [
+              host.module
+              (
+                { config, ... }:
+                {
+                  nixpkgs.hostPlatform = lib.mkDefault host.system;
+                  assertions = [
+                    {
+                      assertion = config.networking.hostName == name;
+                      message = "Host ${name} must set networking.hostName to ${name}.";
+                    }
+                    {
+                      assertion = config.nixpkgs.hostPlatform.system == host.system;
+                      message = "Host ${name} must use ${host.system}.";
+                    }
+                  ];
+                }
+              )
+            ]
+            ++ extraModules;
         };
 
       nixosConfigurations = lib.concatMapAttrs (
