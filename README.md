@@ -157,28 +157,69 @@ Secret Service use avoids this if it becomes an issue.
 
 ## Dotfiles
 
-`home.nix` (via home-manager) is the place for this. Files can be
-declared with content inline, or as a link to a file kept in this
-repository, e.g.:
+`home.nix` declares dotfiles as links to files kept in this repository,
+e.g.:
 ```
-home.file.".config/hypr/hyprland.conf".source = ./dotfiles/hyprland.conf;
+home.file.".config/hypr/hyprland.conf".source = ./dotfiles/hypr/hyprland.conf;
 ```
 This is one of at least three approaches used in NixOS configurations
-generally - see "Design notes" below - and none are included here yet.
+generally - see "Design notes" below.
+
+Currently tracked this way: `dotfiles/hypr/hyprland.conf` (the normal
+session) and `dotfiles/quickshell/{bar,lockscreen}` (see "Desktop"
+below). The greeter's copy of the Quickshell config is published via
+`environment.etc` in `configuration.nix` instead, since it runs as a
+separate system user with no home-manager-managed home directory.
 
 ## Desktop: Hyprland + Quickshell
 
-`programs.hyprland.enable = true;` is set, and `quickshell`, `matugen`,
-and `swww` are installed system-wide. `qt.enable` and
+`programs.hyprland.enable = true;` is set, and `quickshell` and
+`matugen` are installed system-wide. `qt.enable` and
 `programs.dconf.enable` are set so Qt and GTK applications pick up a
 consistent theme outside a full desktop environment.
 
-Not included yet: the bar/dock layout (Quickshell QML), a wallpaper
-selection, and the matugen templates that translate a wallpaper's
-palette into GTK, Qt, and Quickshell theme files. matugen supports
-templates for both toolkits directly, the same mechanism
-DankMaterialShell itself is built on, without requiring the rest of
-that shell.
+**Session start.** `services.greetd` provides the graphical login: on
+boot it launches a throwaway Hyprland instance
+(`dotfiles/hypr/greeter.conf`) running only a Quickshell login UI
+(`dotfiles/quickshell/greeter/shell.qml`), which authenticates over
+greetd's own IPC protocol (`Quickshell.Services.Greetd`) rather than
+PAM directly - this is the standard division of responsibility for
+greetd greeters. On success it hands off to the user's normal Hyprland
+session, which starts Quickshell via `exec-once` in
+`dotfiles/hypr/hyprland.conf`.
+
+**Bar and wallpaper.** `dotfiles/quickshell/bar/shell.qml` is the
+default Quickshell config: one full-screen background layer-shell
+surface per monitor for the wallpaper, and one top-anchored bar
+showing the current date and time. No wallpaper image is committed;
+the `Image` source is a placeholder path (`~/Pictures/wallpaper.jpg`)
+that needs to point at a real file. There is no separate wallpaper
+daemon (no swww/awww/hyprpaper) - Quickshell draws the wallpaper
+itself, since its layer-shell support makes that a background surface
+like any other.
+
+**Lock screen.** `SUPER+L` runs `quickshell -c lockscreen`
+(`dotfiles/quickshell/lockscreen/`), which locks the session via the
+`ext-session-lock-v1` protocol (`WlSessionLock`) and authenticates
+against PAM directly (`Quickshell.Services.Pam`) - independent of
+greetd, which is only involved at initial login. This is deliberately
+minimal: no idle-timeout auto-lock (e.g. via `hypridle`) and no
+`loginctl lock-session` integration, so things like suspend or
+lid-close won't trigger it yet.
+
+Not included yet: a terminal or app-launcher keybind (no terminal
+emulator is installed, so `hyprland.conf` currently has no way to open
+one), and the matugen templates that translate a wallpaper's palette
+into GTK, Qt, and Quickshell theme files. matugen supports templates
+for both toolkits directly, the same mechanism DankMaterialShell
+itself is built on, without requiring the rest of that shell.
+
+**A caution on the greeter and lock screen:** both are new,
+hand-written against Quickshell's greetd/PAM APIs, and have not yet
+been exercised on real hardware. Keep a way to reach a plain TTY (e.g.
+Ctrl+Alt+F2) before relying on either as the only way into the
+machine - a broken greeter config can otherwise lock out graphical
+login entirely.
 
 ## Design notes
 

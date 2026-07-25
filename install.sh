@@ -60,8 +60,8 @@ unset USER_HASH
 
 nixos-generate-config --no-filesystems --root "$TARGET_ROOT"
 
-cp "${CONFIG_DIR}"/flake.nix "${CONFIG_DIR}"/disko-config.nix "${CONFIG_DIR}"/configuration.nix \
-   "${CONFIG_DIR}"/secrets.nix "${CONFIG_DIR}"/home.nix "${TARGET_ROOT}/etc/nixos/"
+cp -r "${CONFIG_DIR}"/flake.nix "${CONFIG_DIR}"/disko-config.nix "${CONFIG_DIR}"/configuration.nix \
+   "${CONFIG_DIR}"/secrets.nix "${CONFIG_DIR}"/home.nix "${CONFIG_DIR}"/dotfiles "${TARGET_ROOT}/etc/nixos/"
 
 nixos-install --root "$TARGET_ROOT" --flake "${TARGET_ROOT}/etc/nixos#${HOSTNAME}" --no-root-passwd
 

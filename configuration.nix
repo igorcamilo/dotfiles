@@ -49,16 +49,32 @@
 
   zramSwap.enable = true;
 
-  # Desktop: Hyprland, with Quickshell as the shell layer. Bar/dock/
-  # theming configuration itself is not included yet; see README.md.
+  # Desktop: Hyprland, with Quickshell as the shell layer (bar, wallpaper,
+  # lock screen). Wallpaper is drawn by Quickshell itself (a background
+  # layer-shell surface), so no separate wallpaper daemon is installed.
   programs.hyprland.enable = true;
   environment.systemPackages = with pkgs; [
     quickshell
     matugen
-    swww
   ];
   qt.enable = true;
   programs.dconf.enable = true;
+
+  # greetd runs a throwaway Hyprland+Quickshell "greeter" session (see
+  # dotfiles/hypr/greeter.conf and dotfiles/quickshell/greeter) that
+  # authenticates over greetd's own IPC protocol, then hands off to the
+  # user's normal session below. The greeter runs as its own system
+  # user (created automatically by this module), so its files are
+  # published system-wide via environment.etc rather than home-manager.
+  environment.etc."greetd/hyprland.conf".source = ./dotfiles/hypr/greeter.conf;
+  environment.etc."greetd/quickshell".source = ./dotfiles/quickshell/greeter;
+  services.greetd = {
+    enable = true;
+    settings.default_session = {
+      command = "Hyprland --config /etc/greetd/hyprland.conf";
+      user = "greeter";
+    };
+  };
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
 

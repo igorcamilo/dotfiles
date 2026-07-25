@@ -16,6 +16,11 @@
     };
   };
 
-  # Dotfiles can be declared here and tracked in this repository, e.g.:
-  # home.file.".config/hypr/hyprland.conf".source = ./dotfiles/hyprland.conf;
+  # Hyprland session and Quickshell shells (bar + lock screen). The
+  # greeter has its own copy of Quickshell's config, published via
+  # environment.etc in configuration.nix instead of home-manager, since
+  # it runs as a separate system user with no home directory here.
+  home.file.".config/hypr/hyprland.conf".source = ./dotfiles/hypr/hyprland.conf;
+  home.file.".config/quickshell/shell.qml".source = ./dotfiles/quickshell/bar/shell.qml;
+  home.file.".config/quickshell/lockscreen".source = ./dotfiles/quickshell/lockscreen;
 }
