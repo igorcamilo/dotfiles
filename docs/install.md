@@ -20,14 +20,29 @@ git status --short
 ```
 
 The installer requires a committed `flake.lock` and never updates it. If the
-lock is not present, generate it inside this NixOS live environment—not on
-macOS—then review and commit it before installation:
+lock is not present, use the read-only **Generate flake lock** workflow in
+GitHub Actions:
 
-```sh
-nix flake lock
-git add flake.lock
-git commit -m "Lock Nix inputs"
-```
+1. Open **Actions → Generate flake lock → Run workflow** and select the exact
+   branch to install.
+2. Wait for the native ARM job to finish, then download its
+   `flake-lock-<source revision>` artifact from the workflow summary.
+3. Extract the artifact outside the repository and verify it on macOS:
+
+   ```sh
+   LOCK_ARTIFACT=/path/to/extracted/artifact
+   (cd "$LOCK_ARTIFACT" && shasum -a 256 -c flake.lock.sha256)
+   test "$(<"$LOCK_ARTIFACT/SOURCE_REVISION")" = "$(git rev-parse HEAD)"
+   cp "$LOCK_ARTIFACT/flake.lock" ./flake.lock
+   git add flake.lock
+   git commit -m "Lock Nix inputs"
+   git push
+   ```
+
+The workflow has read-only repository access and cannot commit the result.
+It validates locked metadata and both ARM host profiles before completing.
+Once a NixOS environment is available, `nix flake lock` there remains the
+normal alternative. Do not install Nix on macOS for this procedure.
 
 Identify a stable whole-disk path:
 
