@@ -26,7 +26,6 @@ Hyprland + Quickshell as the desktop shell.
 4. Run:
    ```
    cd /tmp/nixconfig
-   chmod +x install.sh
    ./install.sh
    ```
    The script asks for the target disk and a login password, shows a
