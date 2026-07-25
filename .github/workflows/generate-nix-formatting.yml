@@ -1,0 +1,115 @@
+name: Generate Nix formatting
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nix-formatting-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generate:
+    name: Generate and validate on x86_64-linux
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out selected revision
+        uses: actions/checkout@v7
+
+      - name: Require committed flake lock
+        shell: bash
+        run: |
+          if [[ ! -s flake.lock ]] \
+            || ! git ls-files --error-unmatch flake.lock >/dev/null 2>&1; then
+            echo "::error file=flake.lock::flake.lock must be generated and committed from a NixOS environment whenever flake inputs change."
+            exit 1
+          fi
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v22
+
+      - name: Generate formatting candidate
+        id: format
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git rev-parse HEAD > SOURCE_REVISION
+          formatter_out=$(
+            nix build \
+              --no-link \
+              --no-update-lock-file \
+              --print-out-paths \
+              .#formatter.x86_64-linux
+          )
+          nixfmt_bin="${formatter_out}/bin/nixfmt"
+          test -x "$nixfmt_bin"
+          "$nixfmt_bin" --version
+          echo "nixfmt_bin=${nixfmt_bin}" >> "$GITHUB_OUTPUT"
+
+          while IFS= read -r -d '' file; do
+            "$nixfmt_bin" "$file"
+          done < <(git ls-files -z -- '*.nix')
+
+          git diff --exit-code -- flake.lock
+
+          mapfile -t changed_files < <(git diff --name-only --diff-filter=ACMRTUXB)
+          if (( ${#changed_files[@]} == 0 )); then
+            echo "::error::All tracked Nix files are already formatted."
+            exit 1
+          fi
+          for file in "${changed_files[@]}"; do
+            if [[ "$file" != *.nix ]]; then
+              echo "::error file=${file}::Formatting must only change tracked Nix files."
+              exit 1
+            fi
+          done
+
+          git diff --binary > nixfmt.patch
+          test -s nixfmt.patch
+          sha256sum nixfmt.patch > nixfmt.patch.sha256
+
+      - name: Verify formatting candidate
+        shell: bash
+        env:
+          NIXFMT_BIN: ${{ steps.format.outputs.nixfmt_bin }}
+        run: |
+          set -euo pipefail
+
+          while IFS= read -r -d '' file; do
+            "$NIXFMT_BIN" --check "$file"
+          done < <(git ls-files -z -- '*.nix')
+
+          sha256sum --check nixfmt.patch.sha256
+          git diff --binary | cmp - nixfmt.patch
+          git diff --exit-code -- flake.lock
+          test "$(cat SOURCE_REVISION)" = "$(git rev-parse HEAD)"
+
+      - name: Upload formatting candidate
+        uses: actions/upload-artifact@v7
+        with:
+          name: nixfmt-${{ github.sha }}
+          path: |
+            nixfmt.patch
+            nixfmt.patch.sha256
+            SOURCE_REVISION
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Run x86 flake checks
+        shell: bash
+        run: nix flake check --no-update-lock-file --print-build-logs
+
+      - name: Confirm candidate integrity
+        if: ${{ always() && steps.format.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sha256sum --check nixfmt.patch.sha256
+          git diff --binary | cmp - nixfmt.patch
+          git diff --exit-code -- flake.lock
+          test "$(cat SOURCE_REVISION)" = "$(git rev-parse HEAD)"
