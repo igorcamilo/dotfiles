@@ -72,7 +72,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          nix flake check --no-update-lock-file --print-build-logs
+          nix flake check --no-update-lock-file --keep-going --print-build-logs
           sha256sum --check flake.lock.sha256
 
       - name: Build both ARM host profiles explicitly
@@ -82,6 +82,7 @@ jobs:
           nix build \
             --no-link \
             --no-update-lock-file \
+            --keep-going \
             .#nixosConfigurations.igor-vm.config.system.build.toplevel \
             .#nixosConfigurations.igor-vm-bootstrap.config.system.build.toplevel
           sha256sum --check flake.lock.sha256

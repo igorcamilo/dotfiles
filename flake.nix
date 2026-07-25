@@ -172,23 +172,38 @@
             '';
           };
 
-          nix-static = mkCheck system "nix-static" {
-            nativeBuildInputs = [
-              (pkgsFor system).deadnix
-              (pkgsFor system).statix
-            ];
+          deadnix = mkCheck system "deadnix" {
+            nativeBuildInputs = [ (pkgsFor system).deadnix ];
             script = ''
               deadnix --fail .
+            '';
+          };
+
+          statix = mkCheck system "statix" {
+            nativeBuildInputs = [ (pkgsFor system).statix ];
+            script = ''
               statix check .
             '';
           };
 
-          shell = mkCheck system "shell" {
+          shellcheck = mkCheck system "shellcheck" {
             nativeBuildInputs = [ (pkgsFor system).shellcheck ];
             script = ''
               shellcheck -x install.sh tests/install-functions.sh
-              bash -n install.sh tests/install-functions.sh
-              bash tests/install-functions.sh
+            '';
+          };
+
+          bash-syntax = mkCheck system "bash-syntax" {
+            nativeBuildInputs = [ (pkgsFor system).bash ];
+            script = ''
+              ${(pkgsFor system).bash}/bin/bash -n install.sh tests/install-functions.sh
+            '';
+          };
+
+          installer-tests = mkCheck system "installer-tests" {
+            nativeBuildInputs = [ (pkgsFor system).bash ];
+            script = ''
+              ${(pkgsFor system).bash}/bin/bash tests/install-functions.sh
             '';
           };
 

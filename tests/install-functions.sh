@@ -57,8 +57,11 @@ assert_fails validate_flake_host "$test_temp_dir" "unknown-host"
 
 mock_bin="${test_temp_dir}/bin"
 mkdir -p "$mock_bin"
-cat > "${mock_bin}/nix" <<'EOF'
-#!/usr/bin/env bash
+[[ ${BASH:-} == /* && -x ${BASH:-} ]] \
+  || fail "tests require an absolute, executable Bash interpreter path"
+{
+  printf '#!%s\n' "$BASH"
+  cat <<'EOF'
 set -euo pipefail
 
 flake_ref=${*: -1}
@@ -77,6 +80,7 @@ case "$flake_ref" in
     ;;
 esac
 EOF
+} > "${mock_bin}/nix"
 chmod +x "${mock_bin}/nix"
 printf '%s\n' '{ "nodes": {}, "root": "root", "version": 7 }' > "${test_temp_dir}/flake.lock"
 

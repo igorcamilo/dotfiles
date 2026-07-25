@@ -38,7 +38,7 @@ sudo nixos-rebuild switch --flake /etc/nixos#igor-vm
 Validate locked inputs without modifying `flake.lock`:
 
 ```sh
-nix flake check --no-update-lock-file
+nix flake check --no-update-lock-file --keep-going
 ```
 
 The formatter, development shell, and Disko app are exposed for both
