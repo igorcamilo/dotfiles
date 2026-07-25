@@ -2,3 +2,12 @@ pre-commit:
   commands:
     secrets:
       run: gitleaks protect --staged --redact
+    # install.sh stages hardware-configuration.nix and secrets/ with
+    # `git add --intent-to-add` (path only, no content) so the flake
+    # can find them - see README's "Tracking changes after install".
+    # This refuses to let that turn into an actual commit.
+    no-machine-specific-files:
+      glob: "{hardware-configuration.nix,secrets/**}"
+      run: |
+        echo "Refusing to commit gitignored, machine-specific file(s): {staged_files}" >&2
+        exit 1

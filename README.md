@@ -12,20 +12,27 @@ Hyprland + Quickshell as the desktop shell.
 - `configuration.nix` - system configuration.
 - `secrets.nix` - references to secret files kept outside the repository.
 - `home.nix` - user-level (home-manager) configuration.
-- `install.sh` - install script (partition, write secrets, install).
+- `install.sh` - install script (partition, clone this repository to
+  the target, write secrets, install).
 - `lefthook.yml` - pre-commit secret scanning, see "Secrets" below.
 - `hardware-configuration.nix` - generated locally, not included here.
+  See "Tracking changes after install" for how a relative,
+  gitignored import still resolves once this directory is a real git
+  working tree.
 
 ## Install
 
 1. Boot the NixOS live ISO. Confirm networking: `ping nixos.org` (run
    `nmtui` first on Wi-Fi).
-2. Copy this directory onto the live system, e.g. to `/tmp/nixconfig/`.
+2. Get `install.sh` onto the live system - it's the only file that
+   needs to be there locally; it clones the rest of this repository
+   fresh from GitHub itself. Copying the whole repository (e.g. to
+   `/tmp/nixconfig/`) also works and is simplest if that's already how
+   it got there (USB drive, `scp`, etc.).
 3. Identify the target disk: `lsblk`. A `/dev/disk/by-id/...` path is
    preferred over `/dev/sda`, which can shift between boots.
-4. Run:
+4. Run `install.sh` (adjust the path to wherever step 2 put it):
    ```
-   cd /tmp/nixconfig
    ./install.sh
    ```
    The script asks for the target disk and a login password, shows a
@@ -59,33 +66,32 @@ Hyprland + Quickshell as the desktop shell.
 
 ## Tracking changes after install
 
-`install.sh` copies this configuration into `/etc/nixos` once, as a
-snapshot - that copy is not a git checkout, so edits made there
-wouldn't be tracked anywhere. To keep using this repository as the
-source of truth after the first boot:
+`install.sh` clones this repository directly to
+`/home/igor/dotfiles` on the target disk and points `/etc/nixos` at it
+via a symlink - there's no separate migration step, and no plain
+one-time copy to outgrow. From the first boot onward:
 
-1. Clone it into the new machine's own home directory:
-   ```
-   git clone https://github.com/igorcamilo/dotfiles.git ~/dotfiles
-   ```
-2. Copy over the two things `install.sh` deliberately keeps outside
-   git - the generated hardware module and the secrets directory (see
-   "Layout" and "Secrets"):
-   ```
-   sudo cp /etc/nixos/hardware-configuration.nix ~/dotfiles/
-   sudo cp -r /etc/nixos/secrets ~/dotfiles/
-   sudo chown -R "$(whoami)" ~/dotfiles/hardware-configuration.nix ~/dotfiles/secrets
-   ```
-3. Replace the one-time copy with a symlink to the clone, so plain
-   `nixos-rebuild switch` (no `--flake` argument) keeps working:
-   ```
-   sudo mv /etc/nixos /etc/nixos.bak
-   sudo ln -s ~/dotfiles /etc/nixos
-   ```
-4. From then on: edit in `~/dotfiles`, commit, and
-   `sudo nixos-rebuild switch --flake /etc/nixos#igor-desktop` (or
-   `--flake ~/dotfiles#igor-desktop` - equivalent once symlinked).
-   Remove `/etc/nixos.bak` once the symlink is confirmed working.
+- Edit inside `~/dotfiles`, commit, and `git push` as normal.
+- Apply changes with
+  `sudo nixos-rebuild switch --flake /etc/nixos#igor-desktop` (or
+  `--flake ~/dotfiles#igor-desktop` - identical, since one is a
+  symlink to the other).
+- To pull changes made elsewhere: `git -C ~/dotfiles pull`, then
+  rebuild as above.
+
+`hardware-configuration.nix` and `secrets/` stay gitignored (see
+"Secrets") - machine-specific, not meant to be committed - but once
+this directory is a real git working tree, Nix only sees files
+tracked in git's index when evaluating `flake.nix`'s relative imports.
+`install.sh` reconciles this with `git add --intent-to-add --force`
+right after generating them: that stages their *path*, so the flake
+can find them, without staging their *content* for a future commit.
+`lefthook.yml`'s pre-commit hook additionally refuses to let either
+path actually get committed, as a second layer in case that ever gets
+undone locally. This exact interaction - relative import, real git
+tree, gitignored file - is also why CI stubs a throwaway
+`hardware-configuration.nix` and stages it the same way before
+`nix flake check` can run.
 
 ## Secrets
 
@@ -331,6 +337,16 @@ reason the rest of this configuration is declarative: the disk layout
 is version-controlled and reproducible rather than a one-time manual
 step that has to be redone from memory.
 
+**Greeter/lock screen: Quickshell's own services, not a separate
+backend.** DankMaterialShell (see "Prior art") pairs Quickshell with a
+Go backend (`dms`) and a standalone `dank-greeter` binary for
+session/greetd handling. This repository instead calls
+`Quickshell.Services.Greetd` and `Quickshell.Services.Pam` directly
+from QML, and uses `hypridle` (a small, independent, off-the-shelf
+binary) for idle handling - fewer moving parts and no second language
+in the stack, at the cost of the extras a whole second project buys
+DMS: a session/session-type picker, fingerprint auth, a plugin system.
+
 ## Prior art
 
 Structure and specific choices in this repository were informed by
@@ -343,3 +359,11 @@ looking at several other public NixOS configurations, in particular:
 
 None of these are dependencies of this configuration; they are cited
 for reference.
+
+The Quickshell side (bar, greeter, lock screen) additionally drew on
+[AvengeMedia/DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) -
+a complete Quickshell-based desktop shell, different in kind from the
+NixOS configs above. Its wallpaper-driven matugen theming (mentioned
+under "Desktop" above) and its use of Quickshell's Wayland-protocol
+types are the parts most relevant here; its greetd/session handling
+is not, per the design note above.

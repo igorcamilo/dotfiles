@@ -13,8 +13,10 @@ jobs:
       - uses: DeterminateSystems/nix-installer-action@main
 
       # hardware-configuration.nix is machine-specific and gitignored
-      # (see README's "Layout"/"Secrets" sections); this stub exists
-      # purely so the flake evaluates here, not to be deployed anywhere.
+      # (see README's "Secrets"); this stub exists purely so the flake
+      # evaluates here. It's a relative import (see flake.nix), so Nix
+      # needs it tracked in git's index - `add -f` is enough, nothing
+      # is committed from this throwaway checkout anyway.
       - name: Stub hardware-configuration.nix
         run: |
           cat > hardware-configuration.nix <<'EOF'
@@ -27,6 +29,7 @@ jobs:
             };
           }
           EOF
+          git add -f hardware-configuration.nix
 
       - run: nix flake check
 

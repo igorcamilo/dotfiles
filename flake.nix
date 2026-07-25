@@ -36,6 +36,16 @@
         ./disko-config.nix
         ./configuration.nix
         ./secrets.nix
+        # Relative on purpose, not an absolute path: this needs to
+        # resolve correctly both during install (flake root is
+        # /mnt/home/igor/dotfiles) and afterwards (flake root is
+        # /home/igor/dotfiles, or /etc/nixos symlinked to it) - a
+        # fixed absolute path can only ever be right for one of those.
+        # It's gitignored (see "Secrets") since it's machine-specific;
+        # install.sh stages its path with `git add --intent-to-add`
+        # so this relative import can still find it despite Nix only
+        # seeing git-tracked files once this directory is a working
+        # tree - see README's "Tracking changes after install".
         ./hardware-configuration.nix
       ];
     };
