@@ -1,5 +1,11 @@
 { config, pkgs, ... }:
 
+let
+  # Guards against a second lock screen process while one is already
+  # running (e.g. hypridle firing while a manual SUPER+L lock is still
+  # up) - WlSessionLock only allows one locked session at a time.
+  lockCmd = "pgrep -f 'quickshell -c lockscreen' >/dev/null || quickshell -c lockscreen";
+in
 {
   home.username = "igor";
   home.homeDirectory = "/home/igor";
@@ -23,4 +29,31 @@
   home.file.".config/hypr/hyprland.conf".source = ./dotfiles/hypr/hyprland.conf;
   home.file.".config/quickshell/shell.qml".source = ./dotfiles/quickshell/bar/shell.qml;
   home.file.".config/quickshell/lockscreen".source = ./dotfiles/quickshell/lockscreen;
+  home.file.".config/quickshell/shared".source = ./dotfiles/quickshell/shared;
+
+  programs.ghostty.enable = true;
+
+  # Auto-lock on idle: lock at 5 minutes, blank the display 30 seconds
+  # after that, lock again before suspend regardless of idle time.
+  services.hypridle = {
+    enable = true;
+    settings = {
+      general = {
+        lock_cmd = lockCmd;
+        before_sleep_cmd = lockCmd;
+        after_sleep_cmd = "hyprctl dispatch dpms on";
+      };
+      listener = [
+        {
+          timeout = 300;
+          on-timeout = lockCmd;
+        }
+        {
+          timeout = 330;
+          on-timeout = "hyprctl dispatch dpms off";
+          on-resume = "hyprctl dispatch dpms on";
+        }
+      ];
+    };
+  };
 }

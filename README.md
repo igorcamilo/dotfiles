@@ -57,6 +57,36 @@ Hyprland + Quickshell as the desktop shell.
    step is the only way back in until then.
 3. Set the login password directly if it needs to change: `passwd`
 
+## Tracking changes after install
+
+`install.sh` copies this configuration into `/etc/nixos` once, as a
+snapshot - that copy is not a git checkout, so edits made there
+wouldn't be tracked anywhere. To keep using this repository as the
+source of truth after the first boot:
+
+1. Clone it into the new machine's own home directory:
+   ```
+   git clone https://github.com/igorcamilo/dotfiles.git ~/dotfiles
+   ```
+2. Copy over the two things `install.sh` deliberately keeps outside
+   git - the generated hardware module and the secrets directory (see
+   "Layout" and "Secrets"):
+   ```
+   sudo cp /etc/nixos/hardware-configuration.nix ~/dotfiles/
+   sudo cp -r /etc/nixos/secrets ~/dotfiles/
+   sudo chown -R "$(whoami)" ~/dotfiles/hardware-configuration.nix ~/dotfiles/secrets
+   ```
+3. Replace the one-time copy with a symlink to the clone, so plain
+   `nixos-rebuild switch` (no `--flake` argument) keeps working:
+   ```
+   sudo mv /etc/nixos /etc/nixos.bak
+   sudo ln -s ~/dotfiles /etc/nixos
+   ```
+4. From then on: edit in `~/dotfiles`, commit, and
+   `sudo nixos-rebuild switch --flake /etc/nixos#igor-desktop` (or
+   `--flake ~/dotfiles#igor-desktop` - equivalent once symlinked).
+   Remove `/etc/nixos.bak` once the symlink is confirmed working.
+
 ## Secrets
 
 - **Login password**: not embedded in any committed file. `install.sh`
@@ -89,6 +119,22 @@ scan for accidents," the standard approach in the NixOS ecosystem is
 committed and decrypted only on the target machine, using a key that
 never leaves that machine (typically its SSH host key). Worth adopting
 once more than a couple of secrets are involved.
+
+## CI
+
+`.github/workflows/ci.yml` runs on every push and pull request:
+- `nix flake check`, plus a `--dry-run` build of the full system
+  closure, against a stub `hardware-configuration.nix` generated in
+  the workflow (the real one is machine-specific and gitignored - see
+  "Layout" - so CI has to fabricate a throwaway one just to let the
+  flake evaluate; it is never used anywhere else).
+- `shellcheck` on `install.sh`.
+- `gitleaks`, the same scan `lefthook` runs locally pre-commit.
+- `qmllint` over `dotfiles/quickshell/**/*.qml`, marked
+  `continue-on-error`: resolving Quickshell's own QML modules inside a
+  headless nix shell is somewhat fragile, so this job is advisory
+  rather than a hard gate - worth a manual look if it goes red, not
+  necessarily a blocker.
 
 ## Locale
 
@@ -166,10 +212,13 @@ This is one of at least three approaches used in NixOS configurations
 generally - see "Design notes" below.
 
 Currently tracked this way: `dotfiles/hypr/hyprland.conf` (the normal
-session) and `dotfiles/quickshell/{bar,lockscreen}` (see "Desktop"
-below). The greeter's copy of the Quickshell config is published via
-`environment.etc` in `configuration.nix` instead, since it runs as a
-separate system user with no home-manager-managed home directory.
+session) and `dotfiles/quickshell/{bar,lockscreen,shared}` (see
+"Desktop" below). The greeter runs as a separate system user with no
+home-manager-managed home directory, so its own Hyprland config and
+its copy of `dotfiles/quickshell/{greeter,shared}` are published via
+`environment.etc` in `configuration.nix` instead - `shared/` ends up
+deployed twice, once per user, since the two Quickshell processes
+never share a filesystem view.
 
 ## Desktop: Hyprland + Quickshell
 
@@ -188,38 +237,73 @@ greetd greeters. On success it hands off to the user's normal Hyprland
 session, which starts Quickshell via `exec-once` in
 `dotfiles/hypr/hyprland.conf`.
 
+**Terminal.** `programs.ghostty.enable = true;` (home-manager) installs
+Ghostty; `SUPER+Return` opens one.
+
 **Bar and wallpaper.** `dotfiles/quickshell/bar/shell.qml` is the
 default Quickshell config: one full-screen background layer-shell
 surface per monitor for the wallpaper, and one top-anchored bar
 showing the current date and time. No wallpaper image is committed;
-the `Image` source is a placeholder path (`~/Pictures/wallpaper.jpg`)
-that needs to point at a real file. There is no separate wallpaper
-daemon (no swww/awww/hyprpaper) - Quickshell draws the wallpaper
-itself, since its layer-shell support makes that a background surface
-like any other.
+the `Image` source everywhere in this config (bar, greeter, lock
+screen) is the fixed path `/etc/wallpaper.jpg`, which the machine
+owner drops into place after install, e.g.
+`sudo install -m 644 ~/Pictures/mine.jpg /etc/wallpaper.jpg`. It has to
+be world-readable and outside any one user's home directory because
+the greeter authenticates as its own unprivileged system user, not
+`igor`, and can't read into `/home/igor` at all. There is no separate
+wallpaper daemon (no swww/awww/hyprpaper) - Quickshell draws the
+wallpaper itself as a background layer-shell surface. (Quickshell can
+drive video wallpapers too, e.g. via an `mpv`-backed item, if a static
+image stops being enough - not attempted here.)
 
-**Lock screen.** `SUPER+L` runs `quickshell -c lockscreen`
-(`dotfiles/quickshell/lockscreen/`), which locks the session via the
-`ext-session-lock-v1` protocol (`WlSessionLock`) and authenticates
-against PAM directly (`Quickshell.Services.Pam`) - independent of
-greetd, which is only involved at initial login. This is deliberately
-minimal: no idle-timeout auto-lock (e.g. via `hypridle`) and no
-`loginctl lock-session` integration, so things like suspend or
-lid-close won't trigger it yet.
+**Login and lock screen.** Both are built from the same parameterized
+QML components in `dotfiles/quickshell/shared/`, rather than two
+separate UIs that happen to look alike:
+- `SystemUsers.qml` reads `/etc/passwd` directly (world-readable, needs
+  nothing beyond `cat`) for real local accounts - UID 1000-59999, a
+  real shell - so new users added to `configuration.nix` show up on
+  the login screen automatically, with no QML changes.
+- `UserAvatar.qml` shows `/var/lib/AccountsService/icons/<username>`
+  (the convention GDM/lightdm/regreet also use) if present, falling
+  back to a plain initial-letter circle otherwise; no avatar files are
+  required or committed.
+- `AuthCard.qml` is the avatar/name/password card itself, reused
+  as-is by both screens with different data and a different submit
+  handler.
 
-Not included yet: a terminal or app-launcher keybind (no terminal
-emulator is installed, so `hyprland.conf` currently has no way to open
-one), and the matugen templates that translate a wallpaper's palette
-into GTK, Qt, and Quickshell theme files. matugen supports templates
-for both toolkits directly, the same mechanism DankMaterialShell
-itself is built on, without requiring the rest of that shell.
+`dotfiles/quickshell/greeter/shell.qml` shows a macOS-style picker -
+one avatar per account, from `SystemUsers` - that reveals an
+`AuthCard` on click and submits to `Quickshell.Services.Greetd`.
+`dotfiles/quickshell/lockscreen/LockSurface.qml` skips the picker,
+since there's only ever one session to unlock, and shows a single
+`AuthCard` for the current user, submitting through `LockContext.qml`
+to `Quickshell.Services.Pam`. `SUPER+L` locks on demand
+(`quickshell -c lockscreen`); `services.hypridle` (home-manager) locks
+automatically after 5 minutes idle, blanks the display 30 seconds
+after that, and locks again before suspend regardless of idle time.
+It does not yet route through `loginctl lock-session`, so anything
+that locks the session by another means won't reach this lock screen.
+
+Not included yet: the matugen templates that translate a wallpaper's
+palette into GTK, Qt, and Quickshell theme files. matugen supports
+templates for both toolkits directly, the same mechanism
+DankMaterialShell itself is built on, without requiring the rest of
+that shell.
 
 **A caution on the greeter and lock screen:** both are new,
 hand-written against Quickshell's greetd/PAM APIs, and have not yet
-been exercised on real hardware. Keep a way to reach a plain TTY (e.g.
-Ctrl+Alt+F2) before relying on either as the only way into the
-machine - a broken greeter config can otherwise lock out graphical
-login entirely.
+been exercised on real hardware. Two independent safety nets while
+testing:
+- **A plain TTY.** Ctrl+Alt+F3 (or F4, F5...) switches to a text
+  console (`agetty`) that runs completely independently of
+  Hyprland/greetd; log in there with the normal password for a rescue
+  shell. Ctrl+Alt+F1 (or wherever greetd/Hyprland actually landed)
+  switches back.
+- **An older boot generation.** `configurationLimit = 8;` in
+  `configuration.nix` keeps the last 8 `nixos-rebuild` generations
+  selectable from the boot menu, each a complete working system from
+  before whatever change broke things - NixOS's standard rollback
+  path, unrelated to this change specifically.
 
 ## Design notes
 

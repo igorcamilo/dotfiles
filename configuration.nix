@@ -68,6 +68,7 @@
   # published system-wide via environment.etc rather than home-manager.
   environment.etc."greetd/hyprland.conf".source = ./dotfiles/hypr/greeter.conf;
   environment.etc."greetd/quickshell".source = ./dotfiles/quickshell/greeter;
+  environment.etc."greetd/shared".source = ./dotfiles/quickshell/shared;
   services.greetd = {
     enable = true;
     settings.default_session = {

@@ -24,7 +24,9 @@ ShellRoot {
 
             Image {
                 anchors.fill: parent
-                source: "file:///home/igor/Pictures/wallpaper.jpg"
+                // World-readable: the greeter (a different system user)
+                // needs to read this file too. See README.
+                source: "file:///etc/wallpaper.jpg"
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
             }
