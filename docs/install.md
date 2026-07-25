@@ -1,67 +1,86 @@
 # Fresh installation
 
-This procedure erases the selected disk. Keep backups and the LUKS recovery
-passphrase somewhere independent of the machine.
+This procedure erases the selected physical or virtual disk. Keep backups and
+the LUKS recovery passphrase somewhere independent of the target.
 
-## Prepare
+## Prepare the exact source
 
-1. Boot the NixOS installer in UEFI mode.
-2. Connect to the network.
-3. Clone and review the exact configuration to install:
+Boot the NixOS installer matching the target:
 
-   ```sh
-   git clone https://github.com/igorcamilo/dotfiles.git
-   cd dotfiles
-   git log -1 --oneline
-   git status --short
-   ```
+- `x86_64-linux` for `igor-desktop`
+- ARM64/AArch64 for `igor-vm`
 
-4. Identify a stable whole-disk path:
+Clone and review the configuration:
 
-   ```sh
-   ls -l /dev/disk/by-id/
-   lsblk -o NAME,PATH,MODEL,SIZE,TYPE,FSTYPE,MOUNTPOINTS
-   ```
+```sh
+git clone https://github.com/igorcamilo/dotfiles.git
+cd dotfiles
+git log -1 --oneline
+git status --short
+```
+
+The installer requires a committed `flake.lock` and never updates it. If the
+lock is not present, generate it inside this NixOS live environment—not on
+macOS—then review and commit it before installation:
+
+```sh
+nix flake lock
+git add flake.lock
+git commit -m "Lock Nix inputs"
+```
+
+Identify a stable whole-disk path:
+
+```sh
+ls -l /dev/disk/by-id/
+lsblk -o NAME,PATH,MODEL,SERIAL,SIZE,TYPE,FSTYPE,MOUNTPOINTS
+```
+
+Do not continue without a `/dev/disk/by-id/...` entry for the intended whole
+disk. UTM users should fix the virtual disk serial in UTM before proceeding.
 
 ## Install
 
-Run from a clean checkout:
+Run from a clean checkout, selecting exactly one host:
 
 ```sh
-sudo ./install.sh
+sudo ./install.sh --host igor-desktop
+sudo ./install.sh --host igor-vm
 ```
 
-The installer:
+Use `--dry-run` to exercise validation and exact disk confirmation without
+changing the disk:
+
+```sh
+sudo ./install.sh --host igor-vm --dry-run
+```
+
+Before destructive confirmation, the installer:
 
 1. verifies root, UEFI mode, an empty `/mnt`, and required commands;
-2. accepts only a whole-disk `/dev/disk/by-id/...` path;
-3. refuses disks with mounted or active children;
-4. requires confirmation containing the exact selected path;
-5. installs the exact checked-out Git commit;
-6. writes the selected disk identity into the tracked host configuration;
-7. partitions and mounts with the Disko revision from `flake.lock`;
-8. generates a tracked hardware module with `--no-filesystems`;
-9. installs `igor-desktop-bootstrap` with systemd-boot; and
-10. sends the login password directly to `chpasswd` inside the target.
+2. requires `flake.lock` and a clean Git checkout;
+3. evaluates the selected production and bootstrap configurations without
+   updating the lock;
+4. rejects a live installer whose architecture differs from the host;
+5. accepts only an unused whole-disk `/dev/disk/by-id/...` path; and
+6. displays its model, serial, size, filesystems, and mount state.
 
-Disko/cryptsetup asks separately for the LUKS passphrase. It becomes the
-recovery credential once TPM unlock is configured.
-
-Use `sudo ./install.sh --dry-run` to exercise environment and disk validation
-without changing the disk.
+After exact confirmation, it uses the locked Disko app, writes only the
+selected host's disk identity and hardware scan, installs
+`<host>-bootstrap`, and sends the login password directly to `chpasswd`.
+Disko/cryptsetup separately requests the LUKS recovery passphrase.
 
 ## First boot
 
-The target checkout intentionally contains two non-secret changes. Review and
-commit them so future clean clones describe the real machine:
+Review and commit only the generated host data:
 
 ```sh
 cd ~/dotfiles
-git diff -- hosts/igor-desktop
-git add hosts/igor-desktop
-git commit -m "Record igor-desktop hardware"
-git push
+git diff -- hosts/igor-vm
+git add hosts/igor-vm
+git commit -m "Record igor-vm hardware"
 ```
 
-Do not enable firmware Secure Boot yet. Continue with
-[secure-boot.md](secure-boot.md).
+Replace `igor-vm` with `igor-desktop` for the physical machine. Do not enable
+Secure Boot or TPM unlock until the bootstrap profile has booted successfully.
+Continue with [secure-boot.md](secure-boot.md).

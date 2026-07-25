@@ -4,7 +4,7 @@
 
 - Use Ctrl+Alt+F3 (or another free VT) if greetd or Quickshell fails.
 - Select an older NixOS generation from the boot menu after a broken rebuild.
-- Boot the NixOS installer, unlock and mount the target, then rebuild from
+- Boot the architecture-matching NixOS installer, unlock and mount the target, then rebuild from
   `/mnt/home/igor/dotfiles` if no installed generation works.
 - Keep the LUKS recovery passphrase and a backup of Secure Boot keys outside
   the encrypted disk.
@@ -14,8 +14,8 @@ with `cryptsetup open --test-passphrase`.
 
 ## Known limitations
 
-- The committed hardware module is a generic bootstrap placeholder until the
-  first installation generates and commits the real scan.
+- Each committed hardware module is a generic, architecture-correct bootstrap
+  placeholder until that host's first installation commits the real scan.
 - The custom Quickshell greeter and lock screen need real-hardware testing.
 - The greeter currently targets one interactive surface; multi-monitor
   presentation has not been completed.
@@ -25,6 +25,6 @@ with `cryptsetup open --test-passphrase`.
 - `/etc/wallpaper.jpg` is still a machine-local asset; a missing file falls
   back to the configured dark background.
 
-CI can build both system closures and lint the QML, but it cannot validate
-firmware enrollment, TPM behavior, GPU initialization, or physical recovery
-paths.
+Native x86_64 and ARM64 CI can build all four system closures and lint the
+shared QML, but it cannot validate firmware enrollment, TPM behavior, GPU
+initialization, snapshots, or physical recovery paths.

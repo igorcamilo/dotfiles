@@ -1,7 +1,6 @@
 { pkgs, ... }:
 
 {
-  networking.hostName = "igor-desktop";
   networking.networkmanager.enable = true;
   time.timeZone = "Europe/Berlin";
 

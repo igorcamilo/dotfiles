@@ -1,56 +1,61 @@
-# igor-desktop NixOS configuration
+# Igor's NixOS configurations
 
-Single-host NixOS configuration for an encrypted Btrfs workstation:
+Two encrypted NixOS workstation hosts share one desktop and user configuration:
 
-- Disko-managed GPT, LUKS2, and Btrfs subvolumes
-- systemd-boot for the first boot, then Lanzaboote UKIs and Secure Boot
-- measured boot with TPM2-backed disk unlock
-- Hyprland, Quickshell, greetd, and Home Manager
+| Host | Platform | Environment |
+| --- | --- | --- |
+| `igor-desktop` | `x86_64-linux` | Physical desktop |
+| `igor-vm` | `aarch64-linux` | UTM/QEMU on Apple Silicon |
 
-The production configuration is `.#igor-desktop`. The installer deliberately
-uses `.#igor-desktop-bootstrap` so the machine boots with systemd-boot before
-Secure Boot keys exist.
+Each host has a bootstrap profile using systemd-boot and a production profile
+using Lanzaboote, measured boot, and TPM2:
+
+- `.#igor-desktop` and `.#igor-desktop-bootstrap`
+- `.#igor-vm` and `.#igor-vm-bootstrap`
+
+The hostname identifies a machine, not its CPU architecture. Architecture is
+declared and checked in the flake's host registry.
 
 ## Repository layout
 
-- `hosts/igor-desktop/` — tracked disk identity, Disko layout, and generated
-  hardware configuration
-- `modules/boot/` — separate bootstrap and production boot policies
-- `configuration.nix` — shared system configuration
-- `home.nix` and `dotfiles/` — user session and Quickshell configuration
-- `install.sh` — destructive local installer
+- `hosts/<host>/` — hostname, disk identity, and generated hardware scan
+- `modules/storage/` — shared GPT, LUKS2, and Btrfs Disko layout
+- `modules/boot/` — bootstrap and production boot policies
+- `modules/virtualisation/` — UTM/QEMU guest integration
+- `configuration.nix` — shared workstation configuration
+- `home.nix` and `dotfiles/` — shared user session
+- `install.sh` — destructive, host-explicit installer
 
 ## Normal use
 
-Apply the production configuration:
+Rebuild the current host by selecting it explicitly:
 
 ```sh
 sudo nixos-rebuild switch --flake /etc/nixos#igor-desktop
+sudo nixos-rebuild switch --flake /etc/nixos#igor-vm
 ```
 
-Validate changes before switching:
+Validate locked inputs without modifying `flake.lock`:
 
 ```sh
 nix flake check --no-update-lock-file
 ```
 
-Enter the development shell to install the repository hook and obtain the
-formatter, static checks, ShellCheck, and gitleaks:
-
-```sh
-nix develop
-nix fmt
-```
+The formatter, development shell, and Disko app are exposed for both
+`x86_64-linux` and `aarch64-linux`. CI builds each host natively.
 
 ## Installation and security
 
-Read these before changing a disk or firmware:
+Read the relevant procedures before changing a virtual or physical disk:
 
 - [Fresh installation](docs/install.md)
+- [UTM VM on Apple Silicon](docs/utm-vm.md)
 - [Secure Boot, measured boot, and TPM2](docs/secure-boot.md)
 - [Recovery and known limitations](docs/recovery.md)
 
-The generated `hardware-configuration.nix` and selected disk identifier are
-tracked because they describe the host; they are not secrets. Secure Boot
-private keys, login passwords, and the LUKS passphrase are never stored in this
-repository.
+No Nix installation is needed on macOS. For the VM workflow, all Nix commands
+run inside the NixOS ARM live environment or installed guest.
+
+Generated `hardware-configuration.nix` files and disk identifiers are tracked
+because they describe their hosts. Secure Boot private keys, login passwords,
+LUKS passphrases, and TPM state are never stored in this repository.

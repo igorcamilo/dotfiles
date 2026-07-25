@@ -13,11 +13,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  validate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
+  validate-systems:
+    name: Validate ${{ matrix.system }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - system: x86_64-linux
+            runner: ubuntu-24.04
+          - system: aarch64-linux
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
     steps:
       - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v22
+
+      - name: Validate locked flake and build native host profiles
+        run: nix flake check --no-update-lock-file --print-build-logs
+
+  history-secrets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository and history
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -25,8 +47,5 @@ jobs:
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v22
 
-      - name: Validate locked flake and build both systems
-        run: nix flake check --no-update-lock-file --print-build-logs
-
       - name: Scan Git history for secrets
-        run: nix develop --command gitleaks detect --source . --redact --verbose
+        run: nix develop --no-update-lock-file --command gitleaks detect --source . --redact --verbose

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Destructive local installer for igor-desktop.
+# Destructive local installer for a host declared by this flake.
 #
 # Run this script as root from a clean, reviewed Git checkout on the NixOS
 # installer. It installs the exact checked-out commit, not a moving remote
@@ -8,10 +8,11 @@
 set -euo pipefail
 
 TARGET_ROOT="/mnt"
-HOSTNAME="igor-desktop"
 USERNAME="igor"
 REPO_DEST="${TARGET_ROOT}/home/${USERNAME}/dotfiles"
-HOST_RELATIVE_PATH="hosts/${HOSTNAME}"
+TARGET_HOST=""
+HOST_RELATIVE_PATH=""
+EXPECTED_SYSTEM=""
 
 INSTALL_TMP_ROOT=""
 USER_PASS=""
@@ -25,9 +26,16 @@ fail() {
 cleanup() {
   unset USER_PASS USER_PASS_CONFIRM
 
-  if [[ -n "${INSTALL_TMP_ROOT:-}" && "$INSTALL_TMP_ROOT" == /tmp/igor-desktop-install.* ]]; then
+  if [[ -n "${INSTALL_TMP_ROOT:-}" && "$INSTALL_TMP_ROOT" == /tmp/nixos-install.* ]]; then
     rm -rf -- "$INSTALL_TMP_ROOT"
   fi
+}
+
+validate_host_name() {
+  local host_name=$1
+
+  [[ "$host_name" =~ ^[a-z0-9][a-z0-9-]*$ ]] \
+    || fail "host names may contain only lowercase letters, numbers, and hyphens"
 }
 
 validate_disk_path() {
@@ -53,12 +61,44 @@ write_disk_device() {
   printf '%s\n' "$disk_device" > "$destination"
 }
 
+machine_to_nix_system() {
+  case "$1" in
+    x86_64)
+      printf '%s\n' "x86_64-linux"
+      ;;
+    aarch64 | arm64)
+      printf '%s\n' "aarch64-linux"
+      ;;
+    *)
+      fail "unsupported installer architecture: $1"
+      ;;
+  esac
+}
+
+validate_host_architecture() {
+  local expected_system=$1
+  local installer_system=$2
+
+  [[ "$expected_system" == "$installer_system" ]] \
+    || fail "host requires ${expected_system}, but this installer is ${installer_system}"
+}
+
+bootstrap_flake_ref() {
+  local repository=$1
+  local target_host=$2
+
+  validate_host_name "$target_host"
+  printf '%s#%s-bootstrap\n' "$repository" "$target_host"
+}
+
 hardware_config_is_valid() {
   local hardware_file=$1
+  local expected_system=$2
 
   [[ -s "$hardware_file" ]] \
     && grep -q 'boot\.initrd\.availableKernelModules' "$hardware_file" \
-    && grep -q 'nixpkgs\.hostPlatform' "$hardware_file"
+    && grep -Eq "nixpkgs\\.hostPlatform.*\"${expected_system}\"" "$hardware_file" \
+    && ! grep -q 'fileSystems\.' "$hardware_file"
 }
 
 require_commands() {
@@ -66,10 +106,44 @@ require_commands() {
 
   for command_name in \
     find findmnt git grep install lsblk mountpoint nix nixos-enter \
-    nixos-generate-config nixos-install readlink; do
+    nixos-generate-config nixos-install readlink uname; do
     command -v "$command_name" >/dev/null \
       || fail "required command is missing: ${command_name}"
   done
+}
+
+validate_flake_host() {
+  local source_root=$1
+  local target_host=$2
+  local expected_system
+
+  validate_host_name "$target_host"
+  [[ -d "${source_root}/hosts/${target_host}" ]] \
+    || fail "host directory does not exist: hosts/${target_host}"
+  [[ -f "${source_root}/flake.lock" ]] \
+    || fail "flake.lock is required; generate and commit it from a NixOS environment"
+
+  expected_system=$(nix eval \
+    --no-update-lock-file \
+    --raw \
+    "${source_root}#nixosConfigurations.${target_host}.config.nixpkgs.hostPlatform.system") \
+    || fail "could not evaluate production host: ${target_host}"
+
+  nix eval \
+    --no-update-lock-file \
+    --raw \
+    "${source_root}#nixosConfigurations.${target_host}.config.system.build.toplevel.drvPath" \
+    >/dev/null \
+    || fail "production configuration does not evaluate: ${target_host}"
+
+  nix eval \
+    --no-update-lock-file \
+    --raw \
+    "${source_root}#nixosConfigurations.${target_host}-bootstrap.config.system.build.toplevel.drvPath" \
+    >/dev/null \
+    || fail "bootstrap configuration does not evaluate: ${target_host}-bootstrap"
+
+  printf '%s\n' "$expected_system"
 }
 
 validate_environment() {
@@ -125,6 +199,7 @@ run_install() {
   local dry_run=$1
   local source_root
   local source_commit
+  local installer_system
   local requested_device
   local canonical_device
   local confirmation
@@ -141,8 +216,12 @@ run_install() {
     || fail "the source checkout is dirty; review and commit or stash it before installing"
 
   source_commit=$(git -C "$source_root" rev-parse HEAD)
+  EXPECTED_SYSTEM=$(validate_flake_host "$source_root" "$TARGET_HOST")
+  installer_system=$(machine_to_nix_system "$(uname -m)")
+  validate_host_architecture "$EXPECTED_SYSTEM" "$installer_system"
 
-  echo "NixOS install: ${HOSTNAME}"
+  echo "NixOS install: ${TARGET_HOST}"
+  echo "Target platform: ${EXPECTED_SYSTEM}"
   echo "Source commit: ${source_commit}"
   echo
   lsblk -o NAME,PATH,MODEL,SIZE,TYPE,FSTYPE,MOUNTPOINTS
@@ -171,7 +250,7 @@ run_install() {
   validate_passwords "$USER_PASS" "$USER_PASS_CONFIRM"
   unset USER_PASS_CONFIRM
 
-  INSTALL_TMP_ROOT=$(mktemp -d /tmp/igor-desktop-install.XXXXXX)
+  INSTALL_TMP_ROOT=$(mktemp -d /tmp/nixos-install.XXXXXX)
   staged_repo="${INSTALL_TMP_ROOT}/dotfiles"
   generated_hardware_dir="${INSTALL_TMP_ROOT}/hardware"
   prepare_exact_checkout "$source_root" "$staged_repo"
@@ -195,8 +274,8 @@ run_install() {
     --dir "$generated_hardware_dir"
 
   generated_hardware="${generated_hardware_dir}/hardware-configuration.nix"
-  hardware_config_is_valid "$generated_hardware" \
-    || fail "generated hardware configuration is missing required platform or initrd settings"
+  hardware_config_is_valid "$generated_hardware" "$EXPECTED_SYSTEM" \
+    || fail "generated hardware configuration has filesystems or the wrong platform/initrd settings"
   install -m 0644 "$generated_hardware" \
     "${REPO_DEST}/${HOST_RELATIVE_PATH}/hardware-configuration.nix"
 
@@ -207,7 +286,7 @@ run_install() {
 
   nixos-install \
     --root "$TARGET_ROOT" \
-    --flake "${REPO_DEST}#${HOSTNAME}-bootstrap" \
+    --flake "$(bootstrap_flake_ref "$REPO_DEST" "$TARGET_HOST")" \
     --no-root-passwd
 
   printf '%s:%s\n' "$USERNAME" "$USER_PASS" \
@@ -220,9 +299,9 @@ run_install() {
   echo
   echo "Install finished using the systemd-boot bootstrap profile."
   echo "After reboot, review and commit the generated host data:"
-  echo "  git -C ~/dotfiles diff -- hosts/${HOSTNAME}"
-  echo "  git -C ~/dotfiles add hosts/${HOSTNAME}"
-  echo "  git -C ~/dotfiles commit -m 'Record ${HOSTNAME} hardware'"
+  echo "  git -C ~/dotfiles diff -- hosts/${TARGET_HOST}"
+  echo "  git -C ~/dotfiles add hosts/${TARGET_HOST}"
+  echo "  git -C ~/dotfiles commit -m 'Record ${TARGET_HOST} hardware'"
   echo
   echo "Then follow docs/secure-boot.md before enabling Secure Boot or TPM unlock."
 }
@@ -230,11 +309,27 @@ run_install() {
 main() {
   local dry_run=false
 
-  if [[ ${1:-} == "--dry-run" ]]; then
-    dry_run=true
-    shift
-  fi
-  [[ $# -eq 0 ]] || fail "usage: sudo ./install.sh [--dry-run]"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --host)
+        [[ $# -ge 2 ]] || fail "--host requires a value"
+        [[ -z "$TARGET_HOST" ]] || fail "--host may be specified only once"
+        TARGET_HOST=$2
+        shift 2
+        ;;
+      --dry-run)
+        dry_run=true
+        shift
+        ;;
+      *)
+        fail "usage: sudo ./install.sh --host HOST [--dry-run]"
+        ;;
+    esac
+  done
+
+  [[ -n "$TARGET_HOST" ]] || fail "usage: sudo ./install.sh --host HOST [--dry-run]"
+  validate_host_name "$TARGET_HOST"
+  HOST_RELATIVE_PATH="hosts/${TARGET_HOST}"
 
   trap cleanup EXIT INT TERM
   run_install "$dry_run"
