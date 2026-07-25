@@ -58,23 +58,26 @@ jobs:
 
           mapfile -t changed_files < <(git diff --name-only --diff-filter=ACMRTUXB)
           if (( ${#changed_files[@]} == 0 )); then
-            echo "::error::All tracked Nix files are already formatted."
-            exit 1
-          fi
-          for file in "${changed_files[@]}"; do
-            if [[ "$file" != *.nix ]]; then
-              echo "::error file=${file}::Formatting must only change tracked Nix files."
-              exit 1
-            fi
-          done
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::All tracked Nix files are already formatted; no artifact will be uploaded."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            for file in "${changed_files[@]}"; do
+              if [[ "$file" != *.nix ]]; then
+                echo "::error file=${file}::Formatting must only change tracked Nix files."
+                exit 1
+              fi
+            done
 
-          git diff --binary > nixfmt.patch
-          test -s nixfmt.patch
-          sha256sum nixfmt.patch > nixfmt.patch.sha256
+            git diff --binary > nixfmt.patch
+            test -s nixfmt.patch
+            sha256sum nixfmt.patch > nixfmt.patch.sha256
+          fi
 
       - name: Verify formatting candidate
         shell: bash
         env:
+          FORMATTING_CHANGED: ${{ steps.format.outputs.changed }}
           NIXFMT_BIN: ${{ steps.format.outputs.nixfmt_bin }}
         run: |
           set -euo pipefail
@@ -83,12 +86,15 @@ jobs:
             "$NIXFMT_BIN" --check "$file"
           done < <(git ls-files -z -- '*.nix')
 
-          sha256sum --check nixfmt.patch.sha256
-          git diff --binary | cmp - nixfmt.patch
+          if [[ "$FORMATTING_CHANGED" == "true" ]]; then
+            sha256sum --check nixfmt.patch.sha256
+            git diff --binary | cmp - nixfmt.patch
+          fi
           git diff --exit-code -- flake.lock
           test "$(cat SOURCE_REVISION)" = "$(git rev-parse HEAD)"
 
       - name: Upload formatting candidate
+        if: ${{ steps.format.outputs.changed == 'true' }}
         uses: actions/upload-artifact@v7
         with:
           name: nixfmt-${{ github.sha }}
@@ -106,10 +112,14 @@ jobs:
       - name: Confirm candidate integrity
         if: ${{ always() && steps.format.outcome == 'success' }}
         shell: bash
+        env:
+          FORMATTING_CHANGED: ${{ steps.format.outputs.changed }}
         run: |
           set -euo pipefail
 
-          sha256sum --check nixfmt.patch.sha256
-          git diff --binary | cmp - nixfmt.patch
+          if [[ "$FORMATTING_CHANGED" == "true" ]]; then
+            sha256sum --check nixfmt.patch.sha256
+            git diff --binary | cmp - nixfmt.patch
+          fi
           git diff --exit-code -- flake.lock
           test "$(cat SOURCE_REVISION)" = "$(git rev-parse HEAD)"

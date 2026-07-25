@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-# shellcheck source=../install.sh
+# shellcheck source=SCRIPTDIR/../install.sh
 source "$(dirname "${BASH_SOURCE[0]}")/../install.sh"
 
 assert_fails() {
