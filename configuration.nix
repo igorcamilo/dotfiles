@@ -28,7 +28,10 @@
   users.users.igor = {
     isNormalUser = true;
     description = "Igor Camilo";
-    extraGroups = [ "wheel" "networkmanager" ];
+    extraGroups = [
+      "wheel"
+      "networkmanager"
+    ];
     # The installer sets the initial password imperatively. Passwords remain
     # mutable, so later changes with passwd survive rebuilds.
   };
@@ -68,7 +71,10 @@
     };
   };
 
-  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+  nix.settings.experimental-features = [
+    "nix-command"
+    "flakes"
+  ];
 
   # Not the update channel (that is nixpkgs.url in flake.nix). See
   # README.md before changing this value.

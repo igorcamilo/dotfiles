@@ -96,22 +96,18 @@
             ++ extraModules;
         };
 
-      nixosConfigurations = lib.concatMapAttrs (
-        name: host:
-        {
-          "${name}" = mkHost name host [
-            lanzaboote.nixosModules.lanzaboote
-            ./modules/boot/secure-boot.nix
-          ];
-          "${name}-bootstrap" = mkHost name host [
-            ./modules/boot/bootstrap.nix
-          ];
-        }
-      ) hosts;
+      nixosConfigurations = lib.concatMapAttrs (name: host: {
+        "${name}" = mkHost name host [
+          lanzaboote.nixosModules.lanzaboote
+          ./modules/boot/secure-boot.nix
+        ];
+        "${name}-bootstrap" = mkHost name host [
+          ./modules/boot/bootstrap.nix
+        ];
+      }) hosts;
 
       mkCheck =
-        system:
-        name:
+        system: name:
         {
           nativeBuildInputs,
           script,
@@ -150,10 +146,11 @@
                   assert production.boot.lanzaboote.enable;
                   assert !production.boot.loader.systemd-boot.enable;
                   assert production.boot.lanzaboote.configurationLimit == 8;
-                  assert production.boot.lanzaboote.measuredBoot.pcrs == [
-                    4
-                    7
-                  ];
+                  assert
+                    production.boot.lanzaboote.measuredBoot.pcrs == [
+                      4
+                      7
+                    ];
                   assert bootstrap.networking.hostName == name;
                   assert bootstrap.nixpkgs.hostPlatform.system == system;
                   assert bootstrap.boot.loader.systemd-boot.enable;
@@ -189,7 +186,7 @@
           shell = mkCheck system "shell" {
             nativeBuildInputs = [ (pkgsFor system).shellcheck ];
             script = ''
-              shellcheck install.sh tests/install-functions.sh
+              shellcheck -x install.sh tests/install-functions.sh
               bash -n install.sh tests/install-functions.sh
               bash tests/install-functions.sh
             '';
@@ -227,9 +224,7 @@
 
       formatter = forAllSystems (system: (pkgsFor system).nixfmt);
 
-      checks = forAllSystems (
-        system: (nativeHostChecks system) // (repositoryChecks system)
-      );
+      checks = forAllSystems (system: (nativeHostChecks system) // (repositoryChecks system));
 
       devShells = forAllSystems (
         system:
