@@ -16,7 +16,11 @@ QtObject {
         busy = true;
         failureMessage = "";
         pendingPassword = password;
-        pam.start();
+        if (!pam.start()) {
+            pendingPassword = "";
+            busy = false;
+            failureMessage = "Could not start authentication";
+        }
     }
 
     property PamContext pam: PamContext {
@@ -24,13 +28,16 @@ QtObject {
         // /etc/pam.d), which NixOS always provides.
         onPamMessage: {
             if (responseRequired) {
-                respond(root.pendingPassword);
+                const response = root.pendingPassword;
+                root.pendingPassword = "";
+                respond(response);
             } else if (messageIsError) {
                 root.failureMessage = message;
             }
         }
 
         onCompleted: result => {
+            root.pendingPassword = "";
             root.busy = false;
             if (result === PamResult.Success) {
                 root.failureMessage = "";
@@ -38,6 +45,12 @@ QtObject {
             } else {
                 root.failureMessage = "Incorrect password";
             }
+        }
+
+        onError: error => {
+            root.pendingPassword = "";
+            root.busy = false;
+            root.failureMessage = "Authentication error";
         }
     }
 }

@@ -45,11 +45,19 @@ ShellRoot {
         }
 
         Text {
+            id: clockText
             anchors.horizontalCenter: parent.horizontalCenter
             y: parent.height * 0.15
             color: "#c0caf5"
             font.pixelSize: 48
             text: Qt.formatDateTime(new Date(), "HH:mm")
+
+            Timer {
+                interval: 1000
+                running: true
+                repeat: true
+                onTriggered: clockText.text = Qt.formatDateTime(new Date(), "HH:mm")
+            }
         }
 
         UserPicker {
@@ -92,6 +100,7 @@ ShellRoot {
                 onClicked: {
                     root.selectedUser = "";
                     root.statusMessage = "";
+                    root.pendingPassword = "";
                 }
             }
         }
@@ -105,23 +114,29 @@ ShellRoot {
         // not a multi-step or multi-factor conversation.
         function onAuthMessage(message, error, responseRequired, echoResponse) {
             if (responseRequired) {
-                Greetd.respond(root.pendingPassword);
+                const response = root.pendingPassword;
+                root.pendingPassword = "";
+                Greetd.respond(response);
             } else if (error) {
+                root.pendingPassword = "";
                 root.busy = false;
                 root.statusMessage = message;
             }
         }
 
         function onAuthFailure(message) {
+            root.pendingPassword = "";
             root.busy = false;
             root.statusMessage = message || "Login failed";
         }
 
         function onReadyToLaunch() {
+            root.pendingPassword = "";
             Greetd.launch(["Hyprland"]);
         }
 
         function onError(errorMessage) {
+            root.pendingPassword = "";
             root.busy = false;
             root.statusMessage = errorMessage;
         }

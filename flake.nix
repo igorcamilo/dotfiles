@@ -10,7 +10,7 @@
     };
 
     lanzaboote = {
-      url = "github:nix-community/lanzaboote";
+      url = "github:nix-community/lanzaboote/v1.1.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
@@ -20,45 +20,134 @@
     };
   };
 
-  outputs = { self, nixpkgs, disko, lanzaboote, home-manager, ... }@inputs: {
-    nixosConfigurations.igor-desktop = nixpkgs.lib.nixosSystem {
+  outputs =
+    {
+      self,
+      nixpkgs,
+      disko,
+      lanzaboote,
+      home-manager,
+      ...
+    }@inputs:
+    let
       system = "x86_64-linux";
-      specialArgs = { inherit inputs; };
-      modules = [
-        disko.nixosModules.disko
-        lanzaboote.nixosModules.lanzaboote
-        home-manager.nixosModules.home-manager
-        {
-          home-manager.useGlobalPkgs = true;
-          home-manager.useUserPackages = true;
-          home-manager.users.igor = import ./home.nix;
-        }
-        ./disko-config.nix
-        ./configuration.nix
-        ./secrets.nix
-        # Relative on purpose, not an absolute path: this needs to
-        # resolve correctly both during install (flake root is
-        # /mnt/home/igor/dotfiles) and afterwards (flake root is
-        # /home/igor/dotfiles, or /etc/nixos symlinked to it) - a
-        # fixed absolute path can only ever be right for one of those.
-        # It's gitignored (see "Secrets") since it's machine-specific;
-        # install.sh stages its path with `git add --intent-to-add`
-        # so this relative import can still find it despite Nix only
-        # seeing git-tracked files once this directory is a working
-        # tree - see README's "Tracking changes after install".
-        ./hardware-configuration.nix
-      ];
-    };
+      pkgs = nixpkgs.legacyPackages.${system};
 
-    # Development shell for working on this repository itself: provides
-    # secret scanning, unrelated to the system configuration it produces.
-    devShells.x86_64-linux.default =
-      let pkgs = nixpkgs.legacyPackages.x86_64-linux;
-      in pkgs.mkShell {
-        packages = [ pkgs.gitleaks pkgs.lefthook ];
-        shellHook = ''
-          lefthook install
+      commonModules = [
+        disko.nixosModules.disko
+        home-manager.nixosModules.home-manager
+        ./hosts/igor-desktop
+        {
+          home-manager = {
+            useGlobalPkgs = true;
+            useUserPackages = true;
+            users.igor = import ./home.nix;
+          };
+        }
+      ];
+
+      mkHost =
+        extraModules:
+        nixpkgs.lib.nixosSystem {
+          inherit system;
+          specialArgs = { inherit inputs; };
+          modules = commonModules ++ extraModules;
+        };
+
+      mkCheck =
+        name:
+        {
+          nativeBuildInputs,
+          script,
+        }:
+        pkgs.runCommand name { inherit nativeBuildInputs; } ''
+          cp -R ${self} source
+          chmod -R u+w source
+          cd source
+          ${script}
+          touch "$out"
         '';
+    in
+    {
+      nixosConfigurations = {
+        igor-desktop = mkHost [
+          lanzaboote.nixosModules.lanzaboote
+          ./modules/boot/secure-boot.nix
+        ];
+
+        igor-desktop-bootstrap = mkHost [
+          ./modules/boot/bootstrap.nix
+        ];
       };
-  };
+
+      apps.${system}.disko = {
+        type = "app";
+        program = "${disko.packages.${system}.default}/bin/disko";
+      };
+
+      formatter.${system} = pkgs.nixfmt;
+
+      checks.${system} = {
+        production-system = self.nixosConfigurations.igor-desktop.config.system.build.toplevel;
+        bootstrap-system = self.nixosConfigurations.igor-desktop-bootstrap.config.system.build.toplevel;
+
+        nix-format = mkCheck "nix-format" {
+          nativeBuildInputs = [ pkgs.nixfmt ];
+          script = ''
+            find . -name '*.nix' -print0 | xargs -0 nixfmt --check
+          '';
+        };
+
+        nix-static = mkCheck "nix-static" {
+          nativeBuildInputs = [
+            pkgs.deadnix
+            pkgs.statix
+          ];
+          script = ''
+            deadnix --fail .
+            statix check .
+          '';
+        };
+
+        shell = mkCheck "shell" {
+          nativeBuildInputs = [ pkgs.shellcheck ];
+          script = ''
+            shellcheck install.sh tests/install-functions.sh
+            bash -n install.sh tests/install-functions.sh
+            bash tests/install-functions.sh
+          '';
+        };
+
+        secrets = mkCheck "secrets" {
+          nativeBuildInputs = [ pkgs.gitleaks ];
+          script = ''
+            gitleaks detect --source . --no-git --redact --verbose
+          '';
+        };
+
+        qml = mkCheck "qml" {
+          nativeBuildInputs = [
+            pkgs.qt6.qtdeclarative
+            pkgs.quickshell
+          ];
+          script = ''
+            export QML2_IMPORT_PATH="${pkgs.quickshell}/lib/qt-6/qml"
+            find dotfiles/quickshell -name '*.qml' -print0 \
+              | xargs -0 -n1 qmllint
+          '';
+        };
+      };
+
+      devShells.${system}.default = pkgs.mkShell {
+        packages = [
+          pkgs.deadnix
+          pkgs.gitleaks
+          pkgs.lefthook
+          pkgs.nixfmt
+          pkgs.shellcheck
+          pkgs.statix
+        ];
+        shellHook = "lefthook install";
+      };
+    };
 }

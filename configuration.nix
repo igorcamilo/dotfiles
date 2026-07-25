@@ -1,4 +1,4 @@
-{ config, lib, pkgs, inputs, ... }:
+{ pkgs, ... }:
 
 {
   networking.hostName = "igor-desktop";
@@ -22,20 +22,6 @@
 
   nixpkgs.config.allowUnfree = true;
 
-  # Boot: UKI + Secure Boot via lanzaboote, replacing systemd-boot.
-  boot.loader.systemd-boot.enable = lib.mkForce false;
-  boot.loader.efi.canTouchEfiVariables = true;
-  boot.lanzaboote = {
-    enable = true;
-    pkiBundle = "/var/lib/sbctl";
-    configurationLimit = 8;
-    measuredBoot = {
-      enable = true;
-      pcrs = [ 4 7 ];
-    };
-  };
-  boot.initrd.systemd.enable = true; # required for TPM2 auto-unlock
-
   # Default Wi-Fi backend (wpa_supplicant) is used here. See README for
   # the iwd backend tradeoffs before uncommenting:
   # networking.networkmanager.wifi.backend = "iwd";
@@ -44,7 +30,8 @@
     isNormalUser = true;
     description = "Igor Camilo";
     extraGroups = [ "wheel" "networkmanager" ];
-    # Password is not set here; see secrets.nix and README.md.
+    # The installer sets the initial password imperatively. Passwords remain
+    # mutable, so later changes with passwd survive rebuilds.
   };
 
   zramSwap.enable = true;

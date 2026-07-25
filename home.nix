@@ -1,12 +1,16 @@
-{ config, pkgs, ... }:
+{ pkgs, ... }:
 
-let
-  # Guards against a second lock screen process while one is already
-  # running (e.g. hypridle firing while a manual SUPER+L lock is still
-  # up) - WlSessionLock only allows one locked session at a time.
-  lockCmd = "pgrep -f 'quickshell -c lockscreen' >/dev/null || quickshell -c lockscreen";
-in
 {
+  # Starting an already-active oneshot service is idempotent, which closes the
+  # race that a pgrep-based lock guard would leave between concurrent callers.
+  systemd.user.services.quickshell-lock = {
+    Unit.Description = "Quickshell Wayland session lock";
+    Service = {
+      Type = "simple";
+      ExecStart = "${pkgs.quickshell}/bin/quickshell -c lockscreen";
+    };
+  };
+
   home.username = "igor";
   home.homeDirectory = "/home/igor";
   home.stateVersion = "26.05";
@@ -39,14 +43,14 @@ in
     enable = true;
     settings = {
       general = {
-        lock_cmd = lockCmd;
-        before_sleep_cmd = lockCmd;
+        lock_cmd = "systemctl --user start quickshell-lock.service";
+        before_sleep_cmd = "systemctl --user start quickshell-lock.service";
         after_sleep_cmd = "hyprctl dispatch dpms on";
       };
       listener = [
         {
           timeout = 300;
-          on-timeout = lockCmd;
+          on-timeout = "systemctl --user start quickshell-lock.service";
         }
         {
           timeout = 330;

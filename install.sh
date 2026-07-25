@@ -1,92 +1,245 @@
 #!/usr/bin/env bash
-# Unattended-after-confirmation NixOS install.
+# Destructive local installer for igor-desktop.
 #
-# Partitions and formats a disk via disko, clones this repository
-# directly to the target's /home/igor/dotfiles (the canonical,
-# committed state - not whatever local copy is running this script),
-# points /etc/nixos at it via symlink, writes the account password
-# secret, generates the hardware-specific module, and installs.
-#
-# This script itself is the only thing that needs to be present
-# locally to run it; everything else comes from REPO_URL below.
-#
-# The LUKS passphrase is requested interactively by cryptsetup during
-# partitioning and is never written to a file; see README.md.
+# Run this script as root from a clean, reviewed Git checkout on the NixOS
+# installer. It installs the exact checked-out commit, not a moving remote
+# branch. Disko asks for the LUKS recovery passphrase during formatting.
 
 set -euo pipefail
 
 TARGET_ROOT="/mnt"
 HOSTNAME="igor-desktop"
 USERNAME="igor"
-REPO_URL="https://github.com/igorcamilo/dotfiles.git"
 REPO_DEST="${TARGET_ROOT}/home/${USERNAME}/dotfiles"
+HOST_RELATIVE_PATH="hosts/${HOSTNAME}"
 
-echo "NixOS install: ${HOSTNAME}"
-echo
+INSTALL_TMP_ROOT=""
+USER_PASS=""
+USER_PASS_CONFIRM=""
 
-read -rp "Target disk (e.g. /dev/disk/by-id/...): " DISK_DEVICE
-if [ ! -b "$DISK_DEVICE" ]; then
-  echo "Not a block device: ${DISK_DEVICE}" >&2
+fail() {
+  echo "Error: $*" >&2
   exit 1
+}
+
+cleanup() {
+  unset USER_PASS USER_PASS_CONFIRM
+
+  if [[ -n "${INSTALL_TMP_ROOT:-}" && "$INSTALL_TMP_ROOT" == /tmp/igor-desktop-install.* ]]; then
+    rm -rf -- "$INSTALL_TMP_ROOT"
+  fi
+}
+
+validate_disk_path() {
+  local disk_device=$1
+
+  [[ "$disk_device" =~ ^/dev/disk/by-id/[A-Za-z0-9._:+-]+$ ]] \
+    || fail "use a whole-disk /dev/disk/by-id/... path containing no whitespace"
+}
+
+validate_passwords() {
+  local password=$1
+  local confirmation=$2
+
+  [[ -n "$password" ]] || fail "the login password cannot be empty"
+  [[ "$password" == "$confirmation" ]] || fail "passwords did not match"
+}
+
+write_disk_device() {
+  local disk_device=$1
+  local destination=$2
+
+  validate_disk_path "$disk_device"
+  printf '%s\n' "$disk_device" > "$destination"
+}
+
+hardware_config_is_valid() {
+  local hardware_file=$1
+
+  [[ -s "$hardware_file" ]] \
+    && grep -q 'boot\.initrd\.availableKernelModules' "$hardware_file" \
+    && grep -q 'nixpkgs\.hostPlatform' "$hardware_file"
+}
+
+require_commands() {
+  local command_name
+
+  for command_name in \
+    find findmnt git grep install lsblk mountpoint nix nixos-enter \
+    nixos-generate-config nixos-install readlink; do
+    command -v "$command_name" >/dev/null \
+      || fail "required command is missing: ${command_name}"
+  done
+}
+
+validate_environment() {
+  [[ ${EUID} -eq 0 ]] || fail "run this installer as root (sudo ./install.sh)"
+  [[ -d /sys/firmware/efi ]] || fail "the installer was not booted in UEFI mode"
+
+  require_commands
+
+  if mountpoint -q "$TARGET_ROOT"; then
+    fail "${TARGET_ROOT} is already a mount point; unmount the previous target first"
+  fi
+
+  if [[ -d "$TARGET_ROOT" ]] && find "$TARGET_ROOT" -mindepth 1 -maxdepth 1 -print -quit | grep -q .; then
+    fail "${TARGET_ROOT} is not empty"
+  fi
+}
+
+resolve_and_validate_disk() {
+  local requested_device=$1
+  local canonical_device
+  local device_type
+
+  validate_disk_path "$requested_device"
+  [[ -b "$requested_device" ]] || fail "not a block device: ${requested_device}"
+
+  canonical_device=$(readlink -f -- "$requested_device")
+  [[ -b "$canonical_device" ]] || fail "could not resolve block device: ${requested_device}"
+
+  device_type=$(lsblk -ndo TYPE "$canonical_device")
+  [[ "$device_type" == "disk" ]] || fail "target must be a whole disk, not a partition"
+
+  if lsblk -nrpo MOUNTPOINTS "$canonical_device" | grep -q '[^[:space:]]'; then
+    fail "the target disk or one of its children is mounted or active"
+  fi
+
+  printf '%s\n' "$canonical_device"
+}
+
+prepare_exact_checkout() {
+  local source_root=$1
+  local staged_repo=$2
+  local source_remote
+
+  git clone --quiet --no-hardlinks "$source_root" "$staged_repo"
+
+  source_remote=$(git -C "$source_root" config --get remote.origin.url || true)
+  if [[ -n "$source_remote" ]]; then
+    git -C "$staged_repo" remote set-url origin "$source_remote"
+  fi
+}
+
+run_install() {
+  local dry_run=$1
+  local source_root
+  local source_commit
+  local requested_device
+  local canonical_device
+  local confirmation
+  local staged_repo
+  local generated_hardware_dir
+  local generated_hardware
+
+  validate_environment
+
+  source_root=$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel 2>/dev/null) \
+    || fail "run install.sh from a Git checkout"
+
+  [[ -z "$(git -C "$source_root" status --porcelain --untracked-files=all)" ]] \
+    || fail "the source checkout is dirty; review and commit or stash it before installing"
+
+  source_commit=$(git -C "$source_root" rev-parse HEAD)
+
+  echo "NixOS install: ${HOSTNAME}"
+  echo "Source commit: ${source_commit}"
+  echo
+  lsblk -o NAME,PATH,MODEL,SIZE,TYPE,FSTYPE,MOUNTPOINTS
+  echo
+
+  read -r -p "Target whole disk (/dev/disk/by-id/...): " requested_device
+  canonical_device=$(resolve_and_validate_disk "$requested_device")
+
+  echo
+  echo "Selected disk:"
+  lsblk -o NAME,PATH,MODEL,SIZE,TYPE,FSTYPE,MOUNTPOINTS "$canonical_device"
+  echo
+  echo "All data on ${requested_device} (${canonical_device}) will be erased."
+  read -r -p "Type 'ERASE ${requested_device}' to continue: " confirmation
+  [[ "$confirmation" == "ERASE ${requested_device}" ]] || fail "confirmation did not match"
+
+  if [[ "$dry_run" == "true" ]]; then
+    echo "Dry run complete: validation passed; no changes were made."
+    return
+  fi
+
+  read -r -s -p "Login password for ${USERNAME}: " USER_PASS
+  echo
+  read -r -s -p "Confirm login password: " USER_PASS_CONFIRM
+  echo
+  validate_passwords "$USER_PASS" "$USER_PASS_CONFIRM"
+  unset USER_PASS_CONFIRM
+
+  INSTALL_TMP_ROOT=$(mktemp -d /tmp/igor-desktop-install.XXXXXX)
+  staged_repo="${INSTALL_TMP_ROOT}/dotfiles"
+  generated_hardware_dir="${INSTALL_TMP_ROOT}/hardware"
+  prepare_exact_checkout "$source_root" "$staged_repo"
+  mkdir -p "$generated_hardware_dir"
+
+  write_disk_device "$requested_device" "${staged_repo}/${HOST_RELATIVE_PATH}/disk-device"
+
+  echo
+  echo "Partitioning and mounting ${requested_device} with Disko."
+  nix run "${staged_repo}#disko" -- \
+    --mode destroy,format,mount \
+    "${staged_repo}/${HOST_RELATIVE_PATH}/disko.nix"
+
+  [[ ! -e "$REPO_DEST" ]] || fail "target repository already exists: ${REPO_DEST}"
+  mkdir -p "$(dirname "$REPO_DEST")"
+  mv "$staged_repo" "$REPO_DEST"
+
+  nixos-generate-config \
+    --no-filesystems \
+    --root "$TARGET_ROOT" \
+    --dir "$generated_hardware_dir"
+
+  generated_hardware="${generated_hardware_dir}/hardware-configuration.nix"
+  hardware_config_is_valid "$generated_hardware" \
+    || fail "generated hardware configuration is missing required platform or initrd settings"
+  install -m 0644 "$generated_hardware" \
+    "${REPO_DEST}/${HOST_RELATIVE_PATH}/hardware-configuration.nix"
+
+  mkdir -p "${TARGET_ROOT}/etc"
+  [[ ! -e "${TARGET_ROOT}/etc/nixos" && ! -L "${TARGET_ROOT}/etc/nixos" ]] \
+    || fail "${TARGET_ROOT}/etc/nixos already exists"
+  ln -s "/home/${USERNAME}/dotfiles" "${TARGET_ROOT}/etc/nixos"
+
+  nixos-install \
+    --root "$TARGET_ROOT" \
+    --flake "${REPO_DEST}#${HOSTNAME}-bootstrap" \
+    --no-root-passwd
+
+  printf '%s:%s\n' "$USERNAME" "$USER_PASS" \
+    | nixos-enter --root "$TARGET_ROOT" -c 'chpasswd'
+  unset USER_PASS
+
+  nixos-enter --root "$TARGET_ROOT" \
+    -c "chown -R ${USERNAME}:users /home/${USERNAME}/dotfiles"
+
+  echo
+  echo "Install finished using the systemd-boot bootstrap profile."
+  echo "After reboot, review and commit the generated host data:"
+  echo "  git -C ~/dotfiles diff -- hosts/${HOSTNAME}"
+  echo "  git -C ~/dotfiles add hosts/${HOSTNAME}"
+  echo "  git -C ~/dotfiles commit -m 'Record ${HOSTNAME} hardware'"
+  echo
+  echo "Then follow docs/secure-boot.md before enabling Secure Boot or TPM unlock."
+}
+
+main() {
+  local dry_run=false
+
+  if [[ ${1:-} == "--dry-run" ]]; then
+    dry_run=true
+    shift
+  fi
+  [[ $# -eq 0 ]] || fail "usage: sudo ./install.sh [--dry-run]"
+
+  trap cleanup EXIT INT TERM
+  run_install "$dry_run"
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  main "$@"
 fi
-
-read -rsp "Login password for ${USERNAME}: " USER_PASS
-echo
-read -rsp "Confirm password: " USER_PASS_CONFIRM
-echo
-if [ "$USER_PASS" != "$USER_PASS_CONFIRM" ]; then
-  echo "Passwords did not match, nothing was changed." >&2
-  exit 1
-fi
-USER_HASH="$(mkpasswd -m sha-512 "$USER_PASS")"
-unset USER_PASS USER_PASS_CONFIRM
-
-echo
-echo "About to erase and partition: ${DISK_DEVICE}"
-echo "Hostname: ${HOSTNAME}"
-read -rp "Type 'yes' to continue: " CONFIRM
-if [ "$CONFIRM" != "yes" ]; then
-  echo "Aborted, nothing was changed."
-  exit 1
-fi
-
-# Cloned to a temporary directory first: disko-config.nix has to come
-# from somewhere before disko has formatted and mounted the target
-# disk, so the final destination under /mnt doesn't exist yet.
-TMP_CLONE="$(mktemp -d)"
-nix --experimental-features "nix-command flakes" run nixpkgs#git -- \
-  clone "$REPO_URL" "$TMP_CLONE"
-
-TMP_DISKO="$(mktemp)"
-sed "s#/dev/disk/by-id/CHANGE-ME#${DISK_DEVICE}#" "${TMP_CLONE}/disko-config.nix" > "$TMP_DISKO"
-nix --experimental-features "nix-command flakes" run github:nix-community/disko -- \
-  --mode disko "$TMP_DISKO"
-rm -f "$TMP_DISKO"
-
-mkdir -p "$(dirname "$REPO_DEST")"
-mv "$TMP_CLONE" "$REPO_DEST"
-
-mkdir -p "${REPO_DEST}/secrets"
-printf '%s' "$USER_HASH" > "${REPO_DEST}/secrets/igor-password.hash"
-chmod 600 "${REPO_DEST}/secrets/igor-password.hash"
-unset USER_HASH
-
-nixos-generate-config --no-filesystems --root "$TARGET_ROOT"
-mv "${TARGET_ROOT}/etc/nixos/hardware-configuration.nix" "${REPO_DEST}/hardware-configuration.nix"
-rm -rf "${TARGET_ROOT}/etc/nixos"
-ln -s "/home/${USERNAME}/dotfiles" "${TARGET_ROOT}/etc/nixos"
-
-# hardware-configuration.nix and secrets/ are gitignored on purpose
-# (see README's "Secrets"), but this is now a real git working tree,
-# and Nix only sees files tracked in git's index when evaluating a
-# flake out of one. --intent-to-add stages their *path* (so the flake
-# can find them) without staging their *content* for a future commit.
-git -C "$REPO_DEST" add --intent-to-add --force \
-  hardware-configuration.nix secrets/igor-password.hash
-
-nixos-install --root "$TARGET_ROOT" --flake "${REPO_DEST}#${HOSTNAME}" --no-root-passwd
-
-nixos-enter --root "$TARGET_ROOT" -c "chown -R ${USERNAME}:users /home/${USERNAME}/dotfiles"
-
-echo
-echo "Install finished. Reboot, then continue with the post-install steps in README.md."

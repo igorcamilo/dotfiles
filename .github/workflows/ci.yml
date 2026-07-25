@@ -5,63 +5,28 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  flake-check:
+  validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
-      - uses: DeterminateSystems/nix-installer-action@main
-
-      # hardware-configuration.nix is machine-specific and gitignored
-      # (see README's "Secrets"); this stub exists purely so the flake
-      # evaluates here. It's a relative import (see flake.nix), so Nix
-      # needs it tracked in git's index - `add -f` is enough, nothing
-      # is committed from this throwaway checkout anyway.
-      - name: Stub hardware-configuration.nix
-        run: |
-          cat > hardware-configuration.nix <<'EOF'
-          { modulesPath, ... }:
-          {
-            imports = [ (modulesPath + "/installer/scan/not-detected.nix") ];
-            fileSystems."/" = {
-              device = "/dev/disk/by-label/nixos";
-              fsType = "ext4";
-            };
-          }
-          EOF
-          git add -f hardware-configuration.nix
-
-      - run: nix flake check
-
-      - name: Dry-run the full system closure
-        run: nix build .#nixosConfigurations.igor-desktop.config.system.build.toplevel --dry-run
-
-  shellcheck:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ludeeus/action-shellcheck@master
+      - name: Check out repository
+        uses: actions/checkout@v7
         with:
-          scandir: "."
+          fetch-depth: 0
 
-  gitleaks:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: DeterminateSystems/nix-installer-action@main
-      - run: nix develop --command gitleaks detect --source . --no-git -v
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v22
 
-  qmllint:
-    runs-on: ubuntu-latest
-    # Resolving Quickshell's own QML modules in a headless nix shell is
-    # somewhat fragile; treat this job as advisory, not a hard gate.
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-      - uses: DeterminateSystems/nix-installer-action@main
-      - name: Lint QML files
-        run: |
-          nix shell nixpkgs#qt6.qtdeclarative nixpkgs#quickshell --command bash -c '
-            export QML2_IMPORT_PATH="$(nix eval --raw nixpkgs#quickshell)/lib/qt-6/qml"
-            find dotfiles/quickshell -name "*.qml" -print0 | xargs -0 -n1 qmllint
-          '
+      - name: Validate locked flake and build both systems
+        run: nix flake check --no-update-lock-file --print-build-logs
+
+      - name: Scan Git history for secrets
+        run: nix develop --command gitleaks detect --source . --redact --verbose
