@@ -29,11 +29,24 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
 
+      - name: Require committed flake lock
+        shell: bash
+        run: |
+          if [[ ! -s flake.lock ]] \
+            || ! git ls-files --error-unmatch flake.lock >/dev/null 2>&1; then
+            echo "::error file=flake.lock::flake.lock must be generated and committed from a NixOS environment whenever flake inputs change."
+            exit 1
+          fi
+
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v22
 
       - name: Validate locked flake and build native host profiles
         run: nix flake check --no-update-lock-file --print-build-logs
+
+      - name: Confirm the lock file was not changed
+        if: always()
+        run: git diff --exit-code -- flake.lock
 
   history-secrets:
     runs-on: ubuntu-24.04
@@ -44,8 +57,21 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Require committed flake lock
+        shell: bash
+        run: |
+          if [[ ! -s flake.lock ]] \
+            || ! git ls-files --error-unmatch flake.lock >/dev/null 2>&1; then
+            echo "::error file=flake.lock::flake.lock must be generated and committed from a NixOS environment whenever flake inputs change."
+            exit 1
+          fi
+
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v22
 
       - name: Scan Git history for secrets
         run: nix develop --no-update-lock-file --command gitleaks detect --source . --redact --verbose
+
+      - name: Confirm the lock file was not changed
+        if: always()
+        run: git diff --exit-code -- flake.lock
