@@ -1,0 +1,6 @@
+hardware-configuration.nix
+*.hash
+*.key
+secrets/
+result
+result-*
