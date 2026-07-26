@@ -83,14 +83,6 @@ validate_host_architecture() {
     || fail "host requires ${expected_system}, but this installer is ${installer_system}"
 }
 
-bootstrap_flake_ref() {
-  local repository=$1
-  local target_host=$2
-
-  validate_host_name "$target_host"
-  printf '%s#%s-bootstrap\n' "$repository" "$target_host"
-}
-
 hardware_config_is_valid() {
   local hardware_file=$1
   local expected_system=$2
@@ -127,21 +119,14 @@ validate_flake_host() {
     --no-update-lock-file \
     --raw \
     "${source_root}#nixosConfigurations.${target_host}.config.nixpkgs.hostPlatform.system") \
-    || fail "could not evaluate production host: ${target_host}"
+    || fail "could not evaluate host: ${target_host}"
 
   nix eval \
     --no-update-lock-file \
     --raw \
     "${source_root}#nixosConfigurations.${target_host}.config.system.build.toplevel.drvPath" \
     >/dev/null \
-    || fail "production configuration does not evaluate: ${target_host}"
-
-  nix eval \
-    --no-update-lock-file \
-    --raw \
-    "${source_root}#nixosConfigurations.${target_host}-bootstrap.config.system.build.toplevel.drvPath" \
-    >/dev/null \
-    || fail "bootstrap configuration does not evaluate: ${target_host}-bootstrap"
+    || fail "configuration does not evaluate: ${target_host}"
 
   printf '%s\n' "$expected_system"
 }
@@ -262,7 +247,7 @@ run_install() {
   echo "Partitioning and mounting ${requested_device} with Disko."
   nix run "${staged_repo}#disko" -- \
     --mode destroy,format,mount \
-    "${staged_repo}/${HOST_RELATIVE_PATH}/disko.nix"
+    --flake "${staged_repo}#${TARGET_HOST}"
 
   [[ ! -e "$REPO_DEST" ]] || fail "target repository already exists: ${REPO_DEST}"
   mkdir -p "$(dirname "$REPO_DEST")"
@@ -286,7 +271,7 @@ run_install() {
 
   nixos-install \
     --root "$TARGET_ROOT" \
-    --flake "$(bootstrap_flake_ref "$REPO_DEST" "$TARGET_HOST")" \
+    --flake "${REPO_DEST}#${TARGET_HOST}" \
     --no-root-passwd
 
   printf '%s:%s\n' "$USERNAME" "$USER_PASS" \
@@ -297,13 +282,14 @@ run_install() {
     -c "chown -R ${USERNAME}:users /home/${USERNAME}/dotfiles"
 
   echo
-  echo "Install finished using the systemd-boot bootstrap profile."
+  echo "Install finished using the ${TARGET_HOST} configuration."
   echo "After reboot, review and commit the generated host data:"
   echo "  git -C ~/dotfiles diff -- hosts/${TARGET_HOST}"
   echo "  git -C ~/dotfiles add hosts/${TARGET_HOST}"
   echo "  git -C ~/dotfiles commit -m 'Record ${TARGET_HOST} hardware'"
   echo
-  echo "Then follow docs/secure-boot.md before enabling Secure Boot or TPM unlock."
+  echo "Secure Boot is not ready yet. The first boot generates signing keys."
+  echo "Keep Secure Boot disabled and then follow docs/secure-boot.md."
 }
 
 main() {

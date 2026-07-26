@@ -19,30 +19,11 @@ git log -1 --oneline
 git status --short
 ```
 
-The installer requires a committed `flake.lock` and never updates it. If the
-lock is not present, use the read-only **Generate flake lock** workflow in
-GitHub Actions:
-
-1. Open **Actions → Generate flake lock → Run workflow** and select the exact
-   branch to install.
-2. Wait for the native ARM job to finish, then download its
-   `flake-lock-<source revision>` artifact from the workflow summary.
-3. Extract the artifact outside the repository and verify it on macOS:
-
-   ```sh
-   LOCK_ARTIFACT=/path/to/extracted/artifact
-   (cd "$LOCK_ARTIFACT" && shasum -a 256 -c flake.lock.sha256)
-   test "$(<"$LOCK_ARTIFACT/SOURCE_REVISION")" = "$(git rev-parse HEAD)"
-   cp "$LOCK_ARTIFACT/flake.lock" ./flake.lock
-   git add flake.lock
-   git commit -m "Lock Nix inputs"
-   git push
-   ```
-
-The workflow has read-only repository access and cannot commit the result.
-It validates locked metadata and both ARM host profiles before completing.
-Once a NixOS environment is available, `nix flake lock` there remains the
-normal alternative. Do not install Nix on macOS for this procedure.
+The installer requires the tracked `flake.lock` and never updates it. If a
+checkout does not contain that file, restore it from Git before continuing.
+Dependency updates are a maintenance task performed inside NixOS with
+`nix flake update`; they are never part of installation. Do not install Nix on
+macOS for this procedure.
 
 Identify a stable whole-disk path:
 
@@ -74,18 +55,22 @@ Before destructive confirmation, the installer:
 
 1. verifies root, UEFI mode, an empty `/mnt`, and required commands;
 2. requires `flake.lock` and a clean Git checkout;
-3. evaluates the selected production and bootstrap configurations without
-   updating the lock;
+3. evaluates the selected host configuration without updating the lock;
 4. rejects a live installer whose architecture differs from the host;
 5. accepts only an unused whole-disk `/dev/disk/by-id/...` path; and
 6. displays its model, serial, size, filesystems, and mount state.
 
 After exact confirmation, it uses the locked Disko app, writes only the
-selected host's disk identity and hardware scan, installs
-`<host>-bootstrap`, and sends the login password directly to `chpasswd`.
-Disko/cryptsetup separately requests the LUKS recovery passphrase.
+selected host's disk identity and hardware scan, installs `<host>`, and sends
+the login password directly to `chpasswd`. Disko/cryptsetup separately
+requests the LUKS recovery passphrase.
 
 ## First boot
+
+Keep Secure Boot disabled. The first boot uses the final host configuration,
+but its boot artifacts are initially unsigned because the machine-local keys
+did not exist during installation. Lanzaboote creates those keys under
+`/var/lib/sbctl` after the system starts.
 
 Review and commit only the generated host data:
 
@@ -97,5 +82,6 @@ git commit -m "Record igor-vm hardware"
 ```
 
 Replace `igor-vm` with `igor-desktop` for the physical machine. Do not enable
-Secure Boot or TPM unlock until the bootstrap profile has booted successfully.
-Continue with [secure-boot.md](secure-boot.md).
+Secure Boot or TPM unlock yet. Continue with
+[secure-boot.md](secure-boot.md) to verify key generation, rebuild signed boot
+artifacts, and enroll them deliberately.

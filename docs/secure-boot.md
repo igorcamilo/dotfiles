@@ -5,23 +5,41 @@ Complete these steps separately on each host. Replace `<host>` with
 
 ## Prepare and sign
 
-The initial system deliberately uses systemd-boot. Confirm UEFI, the current
-boot loader, TPM availability, and Secure Boot state:
+The first installed boot deliberately happens with Secure Boot disabled.
+Lanzaboote uses systemd-boot as the UEFI boot menu and permits unsigned boot
+artifacts only because signing keys did not exist during installation.
+
+Confirm UEFI, the current boot loader, TPM availability, and Secure Boot state:
 
 ```sh
 bootctl status
 ```
 
-Create root-only keys and switch to the production profile:
+The first boot starts a one-shot service that creates root-only keys. Verify
+that it succeeded:
 
 ```sh
-sudo sbctl create-keys
+systemctl status generate-sb-keys.service
+sudo test -s /var/lib/sbctl/keys/db/db.key
+```
+
+If the service has not run yet, start it and check it again:
+
+```sh
+sudo systemctl start generate-sb-keys.service
+```
+
+Rebuild the same host configuration now that the keys exist, then verify every
+boot artifact:
+
+```sh
 sudo nixos-rebuild switch --flake "/etc/nixos#<host>"
 sudo sbctl verify
 ```
 
 Do not enroll keys unless the installed bootloader and all UKIs are reported
-signed. Take a VM snapshot or physical-system backup now.
+signed. The configuration deliberately does not enable Lanzaboote's automatic
+firmware enrollment. Take a VM snapshot or physical-system backup now.
 
 ## Enroll keys
 

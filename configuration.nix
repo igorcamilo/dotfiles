@@ -4,8 +4,7 @@
   networking.networkmanager.enable = true;
   time.timeZone = "Europe/Berlin";
 
-  # English UI, German formatting for the rest. See README for a known
-  # glibc/CLDR gap that can affect this combination.
+  # English interface text with German regional formatting.
   i18n.defaultLocale = "en_US.UTF-8";
   i18n.extraLocaleSettings = {
     LC_ADDRESS = "de_DE.UTF-8";
@@ -20,10 +19,6 @@
   };
 
   nixpkgs.config.allowUnfree = true;
-
-  # Default Wi-Fi backend (wpa_supplicant) is used here. See README for
-  # the iwd backend tradeoffs before uncommenting:
-  # networking.networkmanager.wifi.backend = "iwd";
 
   users.users.igor = {
     isNormalUser = true;
@@ -52,10 +47,7 @@
   # user (created automatically by this module), so its files are
   # published system-wide via environment.etc rather than home-manager.
   environment = {
-    systemPackages = with pkgs; [
-      quickshell
-      matugen
-    ];
+    systemPackages = [ pkgs.quickshell ];
     etc = {
       "greetd/hyprland.conf".source = ./dotfiles/hypr/greeter.conf;
       "greetd/quickshell".source = ./dotfiles/quickshell/greeter;
@@ -76,7 +68,7 @@
     "flakes"
   ];
 
-  # Not the update channel (that is nixpkgs.url in flake.nix). See
-  # README.md before changing this value.
+  # Compatibility version, not the Nixpkgs update channel. Do not change it
+  # after installation without reading the NixOS release notes.
   system.stateVersion = "26.05";
 }

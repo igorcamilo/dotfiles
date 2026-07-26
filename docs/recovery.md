@@ -14,7 +14,7 @@ with `cryptsetup open --test-passphrase`.
 
 ## Known limitations
 
-- Each committed hardware module is a generic, architecture-correct bootstrap
+- Each committed hardware module is a generic, architecture-correct
   placeholder until that host's first installation commits the real scan.
 - The custom Quickshell greeter and lock screen need real-hardware testing.
 - The greeter currently targets one interactive surface; multi-monitor
@@ -25,6 +25,6 @@ with `cryptsetup open --test-passphrase`.
 - `/etc/wallpaper.jpg` is still a machine-local asset; a missing file falls
   back to the configured dark background.
 
-Native x86_64 and ARM64 CI can build all four system closures and lint the
+Native x86_64 and ARM64 CI can build both system closures and lint the
 shared QML, but it cannot validate firmware enrollment, TPM behavior, GPU
 initialization, snapshots, or physical recovery paths.

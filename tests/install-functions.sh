@@ -40,9 +40,6 @@ assert_fails machine_to_nix_system riscv64
 assert_succeeds validate_host_architecture "aarch64-linux" "aarch64-linux"
 assert_fails validate_host_architecture "aarch64-linux" "x86_64-linux"
 
-[[ $(bootstrap_flake_ref "/mnt/home/igor/dotfiles" "igor-vm") \
-  == "/mnt/home/igor/dotfiles#igor-vm-bootstrap" ]]
-
 mkdir -p "${test_temp_dir}/hosts/igor-desktop" "${test_temp_dir}/hosts/igor-vm"
 write_disk_device \
   "/dev/disk/by-id/wwn-desktop" \
@@ -71,9 +68,6 @@ case "$flake_ref" in
     ;;
   *nixosConfigurations.igor-vm.config.system.build.toplevel.drvPath)
     printf '%s' "/nix/store/igor-vm.drv"
-    ;;
-  *nixosConfigurations.igor-vm-bootstrap.config.system.build.toplevel.drvPath)
-    printf '%s' "/nix/store/igor-vm-bootstrap.drv"
     ;;
   *)
     exit 1
