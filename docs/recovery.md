@@ -7,11 +7,35 @@
   greetd, Hyprland, or Quickshell fails. It is a separate UTM window connected
   to `ttyAMA0`, the VM's first emulated ARM serial port. Press Return, then log
   in as `igor` with the password chosen during installation.
+- Greeter runtime directories disappear when a failed greeter session exits,
+  so `/run/user/<greeter-uid>/hypr/.../hyprland.log` is not a durable log.
+  Read the retained logs from the recovery terminal instead:
+
+  ```sh
+  sudo journalctl -b -t greetd-greeter
+  sudo journalctl -b -u greetd
+  ```
+
+  The first command contains Hyprland and Quickshell output; the second
+  contains greetd's session decisions.
 - On the physical desktop, use Ctrl+Alt+F3 (or another free VT) if graphical
   login fails.
 - Select an older NixOS generation from the boot menu after a broken rebuild.
 - Press Escape while Plymouth is running to reveal boot details or a text
   prompt; press Escape again to return to the graphical splash.
+- If the VM shows only a text disk prompt, confirm that its display is
+  `virtio-ramfb-gl` and inspect the current boot:
+
+  ```sh
+  cat /proc/cmdline
+  sudo journalctl -b --grep='plymouth|cryptsetup'
+  ```
+
+  The command line should include `console=tty0`,
+  `plymouth.ignore-serial-consoles`, `quiet`, and `splash`.
+  BGRT retains a firmware logo only when the firmware supplies one. A graphical
+  spinner and password prompt without a vendor logo still mean that Plymouth
+  is working.
 - If UTM opens the `Shell>` UEFI prompt, the firmware did not find an installed
   bootloader. Enter `fs0:` and then `ls EFI\BOOT`. A completed ARM installation
   contains `BOOTAA64.EFI`, which can be started with

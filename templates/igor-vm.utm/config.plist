@@ -14,7 +14,7 @@
 			<key>DynamicResolution</key>
 			<true/>
 			<key>Hardware</key>
-			<string>virtio-gpu-gl-pci</string>
+			<string>virtio-ramfb-gl</string>
 			<key>NativeResolution</key>
 			<false/>
 			<key>UpscalingFilter</key>

@@ -53,7 +53,8 @@ The template contains:
 - empty 150 GiB sparse QCOW2 system disk using the VirtIO interface;
 - empty removable USB CD/DVD drive for the installer ISO;
 - `virtio-net-pci` shared/NAT networking;
-- `virtio-gpu-gl-pci` display with automatic resolution;
+- `virtio-ramfb-gl` display with an early firmware framebuffer, accelerated
+  VirtIO graphics, and automatic resolution;
 - a built-in serial terminal connected to the automatic ARM serial port;
 - clipboard sharing, with directory sharing disabled;
 - UEFI, RNG, balloon, and TPM 2.0 devices; and
@@ -63,6 +64,10 @@ It contains no operating system, ISO, password, Secure Boot key, or TPM state.
 The large virtual capacity does not consume 150 GiB immediately: QCOW2 grows
 as data is written. The complete empty template occupies less than 1 MiB in
 the checkout.
+
+The RAM framebuffer lets UEFI and Plymouth draw before Linux finishes loading
+the VirtIO GPU. The `-gl` variant retains the accelerated graphics Hyprland
+expects.
 
 You can inspect these values in UTM's settings or read the template's
 [`config.plist`](../templates/igor-vm.utm/config.plist). UTM documents the
@@ -101,6 +106,20 @@ UTM documents both the
 [built-in terminal connection](https://docs.getutm.app/settings-qemu/devices/serial/)
 and reopening a closed terminal with the
 [toolbar's display button](https://docs.getutm.app/advanced/multiple-displays/).
+
+## Update an older working copy
+
+Changing the repository template does not modify a VM that was already copied
+and registered in UTM. Before reinstalling an older `igor-vm`:
+
+1. shut down the VM completely;
+2. open **Edit → Display**;
+3. set **Emulated Display Card** to
+   **virtio-ramfb-gl (GPU Supported)**; and
+4. save the VM.
+
+This changes only the virtual display device. It does not replace or erase the
+VirtIO system disk.
 
 ## Keep the system disk identity
 

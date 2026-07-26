@@ -27,6 +27,7 @@
       "wheel"
       "networkmanager"
     ];
+    shell = pkgs.zsh;
     # The installer sets the initial password imperatively. Passwords remain
     # mutable, so later changes with passwd survive rebuilds.
   };
@@ -36,9 +37,14 @@
   # Desktop: Hyprland, with Quickshell as the shell layer (bar, wallpaper,
   # lock screen). Wallpaper is drawn by Quickshell itself (a background
   # layer-shell surface), so no separate wallpaper daemon is installed.
-  programs.hyprland.enable = true;
+  programs = {
+    hyprland.enable = true;
+    dconf.enable = true;
+    # Registers zsh as a valid login shell; users.users.igor.shell above
+    # is what makes it igor's actual default.
+    zsh.enable = true;
+  };
   qt.enable = true;
-  programs.dconf.enable = true;
 
   # greetd runs a throwaway Hyprland+Quickshell "greeter" session (see
   # dotfiles/hypr/greeter.conf and dotfiles/quickshell/greeter) that
@@ -48,22 +54,31 @@
   # published system-wide via environment.etc rather than home-manager.
   environment = {
     systemPackages = [
+      pkgs.git
       # The installed checkout contains LFS-tracked wallpapers.
       pkgs.git-lfs
+      pkgs.nano
       pkgs.quickshell
     ];
     etc = {
       "wallpaper.jpg".source = ./wallpapers/weic2216b.jpg;
       "greetd/hyprland.conf".source = ./dotfiles/hypr/greeter.conf;
-      "greetd/quickshell".source = ./dotfiles/quickshell/greeter;
-      "greetd/shared".source = ./dotfiles/quickshell/shared;
+      # Keep the greeter and its ../shared QML import in one Nix store tree.
+      "greetd/quickshell".source = ./dotfiles/quickshell;
     };
   };
+
+  # JetBrainsMono Nerd Font: patched with the icon glyphs Starship's prompt
+  # and Ghostty's own UI expect (see home.nix). Installed system-wide, not
+  # just for igor, since fontconfig discovery works the same either way.
+  fonts.packages = [ pkgs.nerd-fonts.jetbrains-mono ];
 
   services.greetd = {
     enable = true;
     settings.default_session = {
-      command = "start-hyprland -- --config /etc/greetd/hyprland.conf";
+      # Preserve compositor and greeter output after their runtime directory
+      # disappears. Read it with: journalctl -b -t greetd-greeter
+      command = "${pkgs.systemd}/bin/systemd-cat --identifier=greetd-greeter -- start-hyprland -- --config /etc/greetd/hyprland.conf";
       user = "greeter";
     };
   };
