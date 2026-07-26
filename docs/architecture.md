@@ -15,7 +15,7 @@ The main data flow is:
 flake.lock fixes dependency versions
                  │
                  ▼
-flake.nix selects a host and a boot mode
+flake.nix selects a host
                  │
         ┌────────┴────────┐
         ▼                 ▼
@@ -47,8 +47,8 @@ it does not install or boot the result.
 | Nixpkgs | The package collection and NixOS module library |
 | Disko | The module and tool that partitions, encrypts, and mounts disks |
 | Home Manager | The module that configures Igor's user session |
-| systemd-boot | The ordinary bootloader used for the first boot |
-| Lanzaboote | The Secure Boot integration used after keys exist |
+| systemd-boot | The UEFI boot menu installed and managed through Lanzaboote |
+| Lanzaboote | Builds, signs, and installs the machine's boot artifacts |
 | UEFI | The firmware interface that starts the bootloader |
 | TPM | Hardware or virtual hardware that can unlock LUKS after trusted boot |
 
@@ -88,33 +88,33 @@ Multiple modules may set different parts of the same section. NixOS merges
 those declarations and reports conflicts rather than silently choosing based
 on file order.
 
-## Why there are four outputs
+## Why there are only two outputs
 
-There are two machines and two boot modes:
+There is exactly one configuration for each machine:
 
 ```text
-igor-desktop ───────────── production, x86_64
-igor-desktop-bootstrap ─── first boot, x86_64
-igor-vm ────────────────── production, ARM64
-igor-vm-bootstrap ──────── first boot, ARM64
+igor-desktop ─── physical desktop, x86_64
+igor-vm ───────── UTM virtual machine, ARM64
 ```
 
 The hostname does not contain the architecture because it names one specific
 machine. Architecture is machine metadata in `flake.nix`.
 
-The bootstrap/production split is a safety sequence:
+The configuration does not change identity during Secure Boot setup. Instead,
+Lanzaboote handles the temporary first-boot state:
 
-1. install and boot with ordinary systemd-boot;
-2. create Secure Boot keys;
-3. build the production configuration and verify its signatures;
+1. install the final host configuration while Secure Boot is disabled;
+2. boot unsigned artifacts once and generate machine-local signing keys;
+3. rebuild the same configuration and verify its signatures;
 4. enroll the keys in firmware;
 5. verify Secure Boot;
 6. enroll TPM-assisted disk unlock.
 
-This prevents a new machine from depending on keys that do not exist yet.
-Both boot modes retain eight generations so an older configuration remains
-selectable. Production signs with keys under `/var/lib/sbctl` and measures PCRs
-4 and 7 for the TPM policy.
+`autoGenerateKeys` makes Lanzaboote permit unsigned artifacts while its key
+bundle is absent, then creates the bundle under `/var/lib/sbctl` after the
+first boot. Automatic firmware enrollment stays disabled: the user must verify
+the signed artifacts before changing firmware trust. The configuration retains
+eight generations and measures PCRs 4 and 7 for the TPM policy.
 
 ## How a host is assembled
 
@@ -122,10 +122,11 @@ selectable. Production signs with keys under `/var/lib/sbctl` and measures PCRs
 
 1. Disko's NixOS module;
 2. Home Manager's NixOS module;
-3. `configuration.nix`, the shared operating-system and desktop settings;
-4. `home.nix`, Igor's shared user-session settings;
-5. `hosts/<name>/default.nix`, the machine-specific facts; and
-6. one boot module: bootstrap or production.
+3. Lanzaboote's NixOS module;
+4. `configuration.nix`, the shared operating-system and desktop settings;
+5. `home.nix`, Igor's shared user-session settings;
+6. `modules/boot/secure-boot.nix`, the shared boot policy; and
+7. `hosts/<name>/default.nix`, the machine-specific facts.
 
 The host registry records only two facts:
 
@@ -146,7 +147,7 @@ Shared configuration belongs at the repository root or under `modules/`:
 - `home.nix` configures files and services owned by Igor rather than by the
   whole operating system.
 - `modules/storage/luks-btrfs.nix` describes the disk layout.
-- `modules/boot/` contains the two boot policies.
+- `modules/boot/secure-boot.nix` contains the one shared boot policy.
 
 Only facts about one machine belong under `hosts/<name>/`:
 
@@ -229,7 +230,7 @@ Before confirmation it:
 1. requires root and UEFI;
 2. checks that `/mnt` is unused;
 3. requires a clean Git checkout and committed lock file;
-4. evaluates both configurations for the selected host;
+4. evaluates the selected host configuration;
 5. rejects a live ISO with the wrong CPU architecture;
 6. accepts only a whole-disk `/dev/disk/by-id/...` path;
 7. rejects mounted or active disks; and
@@ -245,7 +246,7 @@ After confirmation it:
 3. asks the locked Disko tool to partition, encrypt, and mount the disk;
 4. moves the copied repository into the target user's home;
 5. generates hardware data without filesystems;
-6. installs the bootstrap configuration;
+6. installs the selected host configuration;
 7. sends the login password to `chpasswd` over standard input; and
 8. clears temporary password variables and files.
 
@@ -279,8 +280,8 @@ process-detection race.
 
 There is one GitHub Actions workflow:
 
-- an x86 runner evaluates and builds both `igor-desktop` configurations;
-- an ARM runner evaluates and builds both `igor-vm` configurations;
+- an x86 runner evaluates and builds `igor-desktop`;
+- an ARM runner evaluates and builds `igor-vm`;
 - the x86 runner also runs `scripts/check.sh`; and
 - a separate job scans the entire Git history for secrets.
 
@@ -320,13 +321,13 @@ pre-commit Gitleaks scan. CI also scans the current tree and full Git history.
 
 | Path | Responsibility |
 | --- | --- |
-| `flake.nix` | Dependencies, four system outputs, tools, and checks |
+| `flake.nix` | Dependencies, two system outputs, tools, and checks |
 | `flake.lock` | Exact dependency revisions |
 | `configuration.nix` | Shared machine-wide settings |
 | `home.nix` | Shared settings owned by Igor |
 | `hosts/` | Per-machine facts |
 | `modules/storage/` | Shared encrypted disk layout |
-| `modules/boot/` | Bootstrap and production boot policies |
+| `modules/boot/` | Shared Secure Boot and measured-boot policy |
 | `modules/virtualisation/` | UTM guest additions |
 | `dotfiles/hypr/` | Hyprland startup and key bindings |
 | `dotfiles/quickshell/bar/` | User bar and wallpaper |
@@ -359,7 +360,7 @@ Change only the VM:
 
 1. edit `hosts/igor-vm/default.nix` or
    `modules/virtualisation/utm.nix`;
-2. build `igor-vm` and `igor-vm-bootstrap`.
+2. build `igor-vm`.
 
 Update dependencies:
 
@@ -380,7 +381,8 @@ Change the disk layout:
 - Keep host facts next to that host.
 - Keep one owner for each concern: Disko owns filesystems, hardware scans own
   detected hardware, and boot modules own boot policy.
-- Preserve the bootstrap-before-Secure-Boot sequence.
+- Keep Secure Boot enrollment manual and verify signatures before changing
+  firmware trust.
 - Keep destructive validation explicit even when it costs more lines.
 - Do not add fleet tooling for two personal machines.
 - Do not install Nix on macOS; use the NixOS VM as the development environment.

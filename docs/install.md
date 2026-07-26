@@ -55,18 +55,22 @@ Before destructive confirmation, the installer:
 
 1. verifies root, UEFI mode, an empty `/mnt`, and required commands;
 2. requires `flake.lock` and a clean Git checkout;
-3. evaluates the selected production and bootstrap configurations without
-   updating the lock;
+3. evaluates the selected host configuration without updating the lock;
 4. rejects a live installer whose architecture differs from the host;
 5. accepts only an unused whole-disk `/dev/disk/by-id/...` path; and
 6. displays its model, serial, size, filesystems, and mount state.
 
 After exact confirmation, it uses the locked Disko app, writes only the
-selected host's disk identity and hardware scan, installs
-`<host>-bootstrap`, and sends the login password directly to `chpasswd`.
-Disko/cryptsetup separately requests the LUKS recovery passphrase.
+selected host's disk identity and hardware scan, installs `<host>`, and sends
+the login password directly to `chpasswd`. Disko/cryptsetup separately
+requests the LUKS recovery passphrase.
 
 ## First boot
+
+Keep Secure Boot disabled. The first boot uses the final host configuration,
+but its boot artifacts are initially unsigned because the machine-local keys
+did not exist during installation. Lanzaboote creates those keys under
+`/var/lib/sbctl` after the system starts.
 
 Review and commit only the generated host data:
 
@@ -78,5 +82,6 @@ git commit -m "Record igor-vm hardware"
 ```
 
 Replace `igor-vm` with `igor-desktop` for the physical machine. Do not enable
-Secure Boot or TPM unlock until the bootstrap profile has booted successfully.
-Continue with [secure-boot.md](secure-boot.md).
+Secure Boot or TPM unlock yet. Continue with
+[secure-boot.md](secure-boot.md) to verify key generation, rebuild signed boot
+artifacts, and enroll them deliberately.

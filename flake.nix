@@ -53,8 +53,10 @@
 
       sharedModules = [
         disko.nixosModules.disko
+        lanzaboote.nixosModules.lanzaboote
         home-manager.nixosModules.home-manager
         ./configuration.nix
+        ./modules/boot/secure-boot.nix
         {
           home-manager = {
             useGlobalPkgs = true;
@@ -65,7 +67,7 @@
       ];
 
       mkHost =
-        name: bootModules:
+        name:
         let
           host = hosts.${name};
         in
@@ -91,26 +93,13 @@
                   ];
                 }
               )
-            ]
-            ++ bootModules;
+            ];
         };
 
-      # These four names are the public installation and rebuild interface.
+      # These two names are the complete installation and rebuild interface.
       nixosConfigurations = {
-        igor-desktop = mkHost "igor-desktop" [
-          lanzaboote.nixosModules.lanzaboote
-          ./modules/boot/secure-boot.nix
-        ];
-        igor-desktop-bootstrap = mkHost "igor-desktop" [
-          ./modules/boot/bootstrap.nix
-        ];
-        igor-vm = mkHost "igor-vm" [
-          lanzaboote.nixosModules.lanzaboote
-          ./modules/boot/secure-boot.nix
-        ];
-        igor-vm-bootstrap = mkHost "igor-vm" [
-          ./modules/boot/bootstrap.nix
-        ];
+        igor-desktop = mkHost "igor-desktop";
+        igor-vm = mkHost "igor-vm";
       };
 
       mkHostChecks =
@@ -118,26 +107,24 @@
         let
           host = hosts.${name};
           pkgs = pkgsFor host.system;
-          production = nixosConfigurations.${name}.config;
-          bootstrap = nixosConfigurations."${name}-bootstrap".config;
+          configuration = nixosConfigurations.${name}.config;
         in
         {
-          "${name}-production-system" = production.system.build.toplevel;
-          "${name}-bootstrap-system" = bootstrap.system.build.toplevel;
+          "${name}-system" = configuration.system.build.toplevel;
           "${name}-boot-policy" =
-            assert production.networking.hostName == name;
-            assert production.nixpkgs.hostPlatform.system == host.system;
-            assert production.boot.lanzaboote.enable;
-            assert !production.boot.loader.systemd-boot.enable;
-            assert production.boot.lanzaboote.configurationLimit == 8;
+            assert configuration.networking.hostName == name;
+            assert configuration.nixpkgs.hostPlatform.system == host.system;
+            assert configuration.boot.lanzaboote.enable;
+            assert configuration.boot.lanzaboote.autoGenerateKeys.enable;
+            assert configuration.boot.lanzaboote.allowUnsigned;
+            assert !configuration.boot.lanzaboote.autoEnrollKeys.enable;
+            assert !configuration.boot.loader.systemd-boot.enable;
+            assert configuration.boot.lanzaboote.configurationLimit == 8;
             assert
-              production.boot.lanzaboote.measuredBoot.pcrs == [
+              configuration.boot.lanzaboote.measuredBoot.pcrs == [
                 4
                 7
               ];
-            assert bootstrap.networking.hostName == name;
-            assert bootstrap.nixpkgs.hostPlatform.system == host.system;
-            assert bootstrap.boot.loader.systemd-boot.enable;
             pkgs.runCommand "${name}-boot-policy" { } ''
               touch "$out"
             '';

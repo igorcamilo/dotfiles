@@ -16,20 +16,18 @@ If Nix and NixOS are new to you, start with
 shows how the files combine, and explains the reason for each major design
 choice.
 
-## The four configurations
-
-Each machine has two configurations:
+## The two configurations
 
 | Configuration | Purpose |
 | --- | --- |
-| `igor-desktop-bootstrap` | First physical-desktop boot with systemd-boot |
-| `igor-desktop` | Normal physical-desktop boot with Lanzaboote |
-| `igor-vm-bootstrap` | First VM boot with systemd-boot |
-| `igor-vm` | Normal VM boot with Lanzaboote |
+| `igor-desktop` | Install and operate the physical desktop |
+| `igor-vm` | Install and operate the ARM virtual machine |
 
-The bootstrap configuration exists so a new installation can prove that
-ordinary UEFI boot works before Secure Boot keys are created. The normal
-configuration is enabled only after that first successful boot.
+The same configuration handles initial installation and normal operation.
+Lanzaboote allows the first boot while signing keys do not yet exist, then
+generates them on the installed machine. Secure Boot remains disabled until
+the signed boot files have been verified and the keys are deliberately
+enrolled in firmware.
 
 ## Common tasks
 
@@ -42,7 +40,7 @@ sudo nixos-rebuild switch --flake /etc/nixos#igor-desktop
 sudo nixos-rebuild switch --flake /etc/nixos#igor-vm
 ```
 
-Check formatting, static analysis, installer tests, and both configurations for
+Check formatting, static analysis, installer tests, and the configuration for
 the current CPU architecture:
 
 ```sh

@@ -52,10 +52,10 @@ Inside the ARM64 live environment, follow [install.md](install.md):
 sudo ./install.sh --host igor-vm
 ```
 
-After the bootstrap system boots, shut it down and take a UTM snapshot. Take
-another snapshot before Secure Boot key enrollment and another before TPM
-enrollment. Snapshots supplement, but do not replace, the LUKS recovery
-passphrase.
+After the installed system boots and generates its signing keys, shut it down
+and take a UTM snapshot. Take another snapshot before Secure Boot key
+enrollment and another before TPM enrollment. Snapshots supplement, but do not
+replace, the LUKS recovery passphrase.
 
 ## Graphics fallback
 
