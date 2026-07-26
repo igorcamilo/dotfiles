@@ -184,11 +184,12 @@ Home Manager owns:
 | Ghostty | Provides the configured terminal |
 | hypridle | Locks after 5 minutes and blanks displays 30 seconds later |
 
-The VM loads its VirtIO GPU in the initrd so Plymouth is available before the
-encrypted root opens. It also adds hardware graphics, a graphical boot console,
-the QEMU guest agent, and the SPICE agent. Its UTM template exposes the ARM
-serial console as a built-in recovery terminal. Everything else is shared with
-the desktop.
+The VM's `virtio-ramfb-gl` display combines a firmware framebuffer for early
+boot with an accelerated VirtIO GPU for Hyprland. The VM loads that GPU in the
+initrd and tells Plymouth to ignore the still-active serial console, so the
+graphical display owns the encrypted-disk prompt while `ttyAMA0` remains a
+recovery terminal. It also adds hardware graphics, the QEMU guest agent, and
+the SPICE agent. Everything else is shared with the desktop.
 
 ## Storage and hardware
 
@@ -264,8 +265,10 @@ After confirmation it:
     temporary password variables and files.
 
 The password, its hash, and the LUKS passphrase are never written to Git or
-placed in command-line arguments. Routine subcommand output is kept out of the
-terminal and written to the installation log instead.
+placed in command-line arguments. Routine subcommand output is written to the
+installation log. On an interactive terminal, one short status row is
+replaced with the latest output line so long operations remain visibly active
+without filling the screen.
 
 ## Desktop and login flow
 
@@ -285,12 +288,17 @@ flowchart TD
 ```
 
 System-owned greeter files are installed by `configuration.nix` under
-`/etc/greetd`. User-owned session files are installed by Home Manager from
-`home.nix`.
+`/etc/greetd`. The greeter and its shared QML components remain in one store
+tree so relative imports work after Nix resolves `/etc` symlinks. User-owned
+session files are installed by Home Manager from `home.nix`.
 
 Both transitions into Hyprland use `start-hyprland`, Hyprland's supported
 launcher. It prepares the session environment before starting the compositor;
 the greeter additionally passes its small system-owned configuration file.
+The greeter's compositor and Quickshell output is retained in the system
+journal under the `greetd-greeter` identifier. A failed Quickshell startup
+leaves its compositor in place instead of repeatedly restarting it; a
+successful authenticated handoff exits it normally.
 
 The lock screen is a systemd user service. Starting an already-running service
 is safe, so keyboard, idle, and suspend events can all request a lock without a

@@ -6,8 +6,12 @@ _:
     initrd.kernelModules = [ "virtio_gpu" ];
 
     # QEMU's ARM machine prefers its serial console. Also show early boot and
-    # the LUKS prompt on UTM's graphical display.
-    kernelParams = [ "console=tty0" ];
+    # the LUKS prompt on UTM's graphical display. Plymouth must ignore the
+    # still-active serial console or it may put its UI on ttyAMA0 instead.
+    kernelParams = [
+      "console=tty0"
+      "plymouth.ignore-serial-consoles"
+    ];
   };
 
   hardware.graphics.enable = true;

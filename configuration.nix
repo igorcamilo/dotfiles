@@ -55,15 +55,17 @@
     etc = {
       "wallpaper.jpg".source = ./wallpapers/weic2216b.jpg;
       "greetd/hyprland.conf".source = ./dotfiles/hypr/greeter.conf;
-      "greetd/quickshell".source = ./dotfiles/quickshell/greeter;
-      "greetd/shared".source = ./dotfiles/quickshell/shared;
+      # Keep the greeter and its ../shared QML import in one Nix store tree.
+      "greetd/quickshell".source = ./dotfiles/quickshell;
     };
   };
 
   services.greetd = {
     enable = true;
     settings.default_session = {
-      command = "start-hyprland -- --config /etc/greetd/hyprland.conf";
+      # Preserve compositor and greeter output after their runtime directory
+      # disappears. Read it with: journalctl -b -t greetd-greeter
+      command = "${pkgs.systemd}/bin/systemd-cat --identifier=greetd-greeter -- start-hyprland -- --config /etc/greetd/hyprland.conf";
       user = "greeter";
     };
   };

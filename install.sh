@@ -54,6 +54,7 @@ cleanup() {
 finish() {
   local status=$1
 
+  clear_progress_line
   cleanup
 
   if ((status != 0)); then
@@ -77,8 +78,47 @@ start_install_log() {
   )
 }
 
-run_logged() {
-  "$@" >> "$INSTALL_LOG" 2>&1
+render_progress_line() {
+  local line=$1
+
+  [[ -t 1 ]] || return 0
+  line=${line//$'\r'/}
+  line=${line//$'\t'/ }
+  printf '\r\033[2K  %.72s' "$line"
+}
+
+clear_progress_line() {
+  if [[ -t 1 ]]; then
+    printf '\r\033[2K'
+  fi
+}
+
+record_progress() {
+  local line
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    printf '%s\n' "$line" >> "$INSTALL_LOG" || return
+    if [[ -n "$line" ]]; then
+      render_progress_line "$line"
+    fi
+  done
+}
+
+run_with_progress() {
+  local initial_message=$1
+  local -a statuses
+  shift
+
+  printf '\n%s\n' "$initial_message" >> "$INSTALL_LOG" || return
+  render_progress_line "$initial_message"
+  "$@" 2>&1 | record_progress
+  statuses=("${PIPESTATUS[@]}")
+  clear_progress_line
+
+  if ((statuses[0] != 0)); then
+    return "${statuses[0]}"
+  fi
+  return "${statuses[1]}"
 }
 
 partition_and_mount_disk() {
@@ -90,8 +130,7 @@ partition_and_mount_disk() {
     | nix run "${staged_repo}#disko" -- \
       --mode destroy,format,mount \
       --yes-wipe-all-disks \
-      --flake "${staged_repo}#${target_host}" \
-      >> "$INSTALL_LOG" 2>&1
+      --flake "${staged_repo}#${target_host}"
 }
 
 validate_host_name() {
@@ -446,7 +485,12 @@ run_install() {
   generated_hardware_dir="${INSTALL_TMP_ROOT}/hardware"
   echo
   echo "STEP 1/5: Prepare the exact checkout and Git LFS files."
-  run_logged prepare_exact_checkout "$source_root" "$staged_repo"
+  run_with_progress \
+    "Preparing the installation checkout..." \
+    prepare_exact_checkout \
+    "$source_root" \
+    "$staged_repo" \
+    || fail "could not prepare the installation checkout or its Git LFS files"
   mkdir -p "$generated_hardware_dir"
   echo "STEP 1/5 complete."
 
@@ -454,7 +498,11 @@ run_install() {
 
   echo
   echo "STEP 2/5: Partition, encrypt, and mount the target disk."
-  if ! partition_and_mount_disk "$staged_repo" "$TARGET_HOST"; then
+  if ! run_with_progress \
+    "Creating the encrypted filesystems..." \
+    partition_and_mount_disk \
+    "$staged_repo" \
+    "$TARGET_HOST"; then
     fail "Disko failed while partitioning, encrypting, or mounting the target"
   fi
   unset LUKS_PASS
@@ -468,7 +516,9 @@ run_install() {
 
   echo
   echo "STEP 3/5: Scan the machine hardware."
-  run_logged nixos-generate-config \
+  run_with_progress \
+    "Generating the hardware configuration..." \
+    nixos-generate-config \
     --no-filesystems \
     --root "$TARGET_ROOT" \
     --dir "$generated_hardware_dir" \
@@ -489,7 +539,9 @@ run_install() {
   echo
   echo "STEP 4/5: Build and install NixOS and its EFI bootloader."
   echo "This is normally the longest step."
-  run_logged nixos-install \
+  run_with_progress \
+    "Building the NixOS system..." \
+    nixos-install \
     --root "$TARGET_ROOT" \
     --flake "${REPO_DEST}#${TARGET_HOST}" \
     --no-root-passwd \
@@ -507,7 +559,10 @@ run_install() {
     || fail "could not set the login password"
   unset USER_PASS
 
-  run_logged nixos-enter --root "$TARGET_ROOT" \
+  run_with_progress \
+    "Finalizing ownership and permissions..." \
+    nixos-enter \
+    --root "$TARGET_ROOT" \
     -c "chown -R ${USERNAME}:users /home/${USERNAME}/dotfiles" \
     || fail "could not assign the installed checkout to ${USERNAME}"
 
@@ -561,6 +616,9 @@ main() {
   [[ -n "$TARGET_HOST" ]] || fail "usage: sudo ./install.sh --host HOST [--dry-run]"
   validate_host_name "$TARGET_HOST"
   HOST_RELATIVE_PATH="hosts/${TARGET_HOST}"
+
+  echo "Starting the NixOS installer for ${TARGET_HOST}."
+  echo "Validating the live environment and locked configuration..."
 
   trap 'finish "$?"' EXIT
   trap 'exit 130' INT

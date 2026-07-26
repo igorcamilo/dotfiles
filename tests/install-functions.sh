@@ -59,12 +59,18 @@ enable_required_nix_features
 
 INSTALL_LOG="${test_temp_dir}/installer.log"
 visible_output=$(
-  run_logged sh -c \
+  run_with_progress "Running a test command..." sh -c \
     'printf "%s\n" "logged stdout"; printf "%s\n" "logged stderr" >&2'
 )
 [[ -z "$visible_output" ]]
+grep -Fq "Running a test command..." "$INSTALL_LOG"
 grep -Fq "logged stdout" "$INSTALL_LOG"
 grep -Fq "logged stderr" "$INSTALL_LOG"
+assert_fails run_with_progress \
+  "Running a failing command..." \
+  sh -c \
+  'printf "%s\n" "logged failure"; exit 7'
+grep -Fq "logged failure" "$INSTALL_LOG"
 
 mkdir -p "${test_temp_dir}/hosts/igor-desktop" "${test_temp_dir}/hosts/igor-vm"
 write_disk_device \
@@ -171,7 +177,11 @@ INSTALL_LOG="${test_temp_dir}/disko.log"
 export MOCK_NIX_LOG="${test_temp_dir}/disko-command.log"
 LUKS_PASS="test LUKS passphrase"
 disko_output=$(
-  with_mock_nix partition_and_mount_disk "$test_temp_dir" "igor-vm"
+  with_mock_nix run_with_progress \
+    "Running mock Disko..." \
+    partition_and_mount_disk \
+    "$test_temp_dir" \
+    "igor-vm"
 )
 unset LUKS_PASS
 [[ -z "$disko_output" ]]

@@ -93,12 +93,14 @@ confirmation before it invokes Disko's non-interactive wipe mode. That flag
 removes only Disko's duplicate `yes` prompt; it does not weaken the installer's
 device checks or exact confirmation.
 
-The terminal shows only five stage descriptions and their completion status.
-Detailed output from Nix, Git LFS, Disko, hardware scanning, and
-`nixos-install` goes to the log. Installation has succeeded only if the final
-`INSTALLATION SUCCEEDED` banner appears. A shell prompt, closed terminal, or
-reboot before that banner means the target may contain partitions but is not
-safe to boot.
+The script immediately says which host it is validating. During installation,
+the terminal shows five stage descriptions and one short progress row. That
+row is continually replaced with the latest subcommand output, then replaced
+by the stage's completion message. Complete output from Nix, Git LFS, Disko,
+hardware scanning, and `nixos-install` remains in the log. Installation has
+succeeded only if the final `INSTALLATION SUCCEEDED` banner appears. A shell
+prompt, closed terminal, or reboot before that banner means the target may
+contain partitions but is not safe to boot.
 
 The root-only live-session log remains at
 `/tmp/nixos-install-<host>.*/install.log` after a failure. On success it is
@@ -152,7 +154,7 @@ there to inspect or rebuild the system; no boot-menu edit is required.
 
 If the VM fails to reach the graphical desktop, stop it and edit its display:
 
-1. replace `virtio-gpu-gl-pci` with `virtio-ramfb`;
+1. replace `virtio-ramfb-gl` with `virtio-ramfb`;
 2. disable accelerated rendering; and
 3. boot the same `igor-vm` configuration again.
 
