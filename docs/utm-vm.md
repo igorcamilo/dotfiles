@@ -1,13 +1,21 @@
-# UTM VM on the M1 Pro MacBook Pro
+# Create the UTM virtual machine
 
-Use the current stable UTM application with its **QEMU** backend. The VM is a
-normal file-backed guest; it does not require Nix on macOS and does not modify
-the Mac's partition table.
+This guide ends when `igor-vm` is ready to boot the NixOS installer. All
+commands run inside NixOS, disk selection, installation, first boot, and
+installation troubleshooting are in [install.md](install.md).
 
-## Create the VM
+Use UTM 4.7.2 or newer with its **QEMU** backend. The VM is a normal
+file-backed guest; creating it does not require Nix on macOS and does not
+modify the Mac's partition table.
 
-Download the official NixOS ARM64 minimal ISO, then create a new
-**Virtualize → Other** QEMU VM with:
+## Create the basic VM
+
+Open **UTM → About UTM** and confirm the version is 4.7.2 or newer. Update UTM
+before continuing if it is older.
+
+Download the
+[official NixOS ARM64 minimal ISO](https://nixos.org/download/), then create a
+new **Virtualize → Other** QEMU VM with:
 
 - name: `igor-vm`
 - architecture: ARM64/AArch64
@@ -21,52 +29,47 @@ Download the official NixOS ARM64 minimal ISO, then create a new
 - UEFI, RNG, balloon, and TPM 2.0: enabled
 - RTC local-time mode: disabled
 
-Give the virtual disk a fixed, non-empty serial. After starting the ISO,
-confirm that udev created a stable whole-disk symlink:
+Save the VM, leave it stopped, and open its settings once more to verify the
+values above. UTM documents the QEMU controls under
+[System](https://docs.getutm.app/settings-qemu/system/) and
+[QEMU](https://docs.getutm.app/settings-qemu/qemu/).
 
-```sh
-lsblk -o NAME,PATH,MODEL,SERIAL,SIZE,TYPE,MOUNTPOINTS
-ls -l /dev/disk/by-id/
-```
+## Create the disk with a stable identity
 
-The installer deliberately rejects `/dev/vda` and other topology-dependent
-names.
+UTM 4.7.2 added a fixed serial automatically for VirtIO block devices. There
+is no serial text field to fill in and no custom QEMU argument to add.
+
+With the VM stopped:
+
+1. Open the VM's settings.
+2. Under **Drives**, select the 150 GiB system disk. If it does not exist,
+   choose **New…** under **Drives** and create it.
+3. Set **Image Type** to **Disk Image**.
+4. Set **Interface** to **VirtIO**.
+5. Leave **Removable** disabled and **Raw Image** disabled. This keeps the
+   disk inside the `.utm` bundle as a sparse QCOW2 image.
+6. Save the VM. Do not delete and recreate this drive after installation,
+   because a new virtual block device may receive a new identity.
+
+UTM's drive editor and storage behavior are described in its
+[drive documentation](https://docs.getutm.app/settings-qemu/drive/drive/).
+The automatic fixed serial is documented in the
+[UTM 4.7.2 release notes](https://github.com/utmapp/UTM/releases/tag/v4.7.2).
 
 ## Prepare custom Secure Boot
 
-Before the first installation boot, open the stopped VM's
-**QEMU → Maintenance** settings:
+Before the first boot, open the stopped VM's **QEMU → Maintenance** settings:
 
 1. select **Reset UEFI Variables**;
 2. leave **Preload Secure Boot Keys** disabled; and
-3. start the VM once so UTM applies the change.
+3. save the VM.
 
-This gives the VM UEFI and TPM support while leaving firmware in Setup Mode
-for the repository's own sbctl keys. Do not preload UTM's Platform Key.
+These maintenance choices apply on the next VM start. Resetting without
+preloading keys leaves the firmware in Setup Mode for this repository's own
+sbctl keys. Do not preload UTM's Platform Key.
 
-## Install and checkpoint
+## Continue with installation
 
-Inside the ARM64 live environment, follow [install.md](install.md):
-
-```sh
-sudo ./install.sh --host igor-vm
-```
-
-After the installed system boots and generates its signing keys, shut it down
-and take a UTM snapshot. Take another snapshot before Secure Boot key
-enrollment and another before TPM enrollment. Snapshots supplement, but do not
-replace, the LUKS recovery passphrase.
-
-## Graphics fallback
-
-VirGL acceleration is experimental. If Hyprland freezes or the display stays
-blank:
-
-1. stop the VM;
-2. replace `virtio-gpu-gl-pci` with `virtio-ramfb`;
-3. disable accelerated rendering; and
-4. boot the same `igor-vm` configuration.
-
-This changes only virtual graphics performance; the host remains
-`aarch64-linux`. The guest enables QEMU and SPICE agents for shutdown, time
-synchronization, clipboard integration, and display resize support.
+The VM is now ready. Start it from the ARM64 ISO and follow
+[Install NixOS](install.md). That guide contains every remaining step for both
+the VM and the physical desktop.

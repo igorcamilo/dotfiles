@@ -1,14 +1,19 @@
-# Fresh installation
+# Install NixOS
 
 This procedure erases the selected physical or virtual disk. Keep backups and
 the LUKS recovery passphrase somewhere independent of the target.
 
+## Boot the installation environment
+
+Prepare and boot the installer matching the target:
+
+- For `igor-desktop`, boot an x86_64 NixOS ISO on the physical desktop.
+- For `igor-vm`, first complete [Create the UTM virtual
+  machine](utm-vm.md), then start it from the ARM64/AArch64 NixOS ISO.
+
+All following commands run inside that NixOS environment, never on macOS.
+
 ## Prepare the exact source
-
-Boot the NixOS installer matching the target:
-
-- `x86_64-linux` for `igor-desktop`
-- ARM64/AArch64 for `igor-vm`
 
 Clone and review the configuration:
 
@@ -19,21 +24,27 @@ git log -1 --oneline
 git status --short
 ```
 
+The ISO's Git is sufficient for cloning and running the installer; do not
+install another copy. The wallpaper is stored with Git LFS, which is a separate
+tool. The installer obtains the locked `git-lfs` package temporarily, downloads
+the image into its private installation checkout, and stops before changing the
+disk if that download fails. No manual Git LFS setup is required on the ISO.
+
 The installer requires the tracked `flake.lock` and never updates it. If a
 checkout does not contain that file, restore it from Git before continuing.
 Dependency updates are a maintenance task performed inside NixOS with
 `nix flake update`; they are never part of installation. Do not install Nix on
 macOS for this procedure.
 
-Identify a stable whole-disk path:
+The installer lists every whole disk available under `/dev/disk/by-id`, along
+with its device path, model, serial number, size, transport, type, and mount
+status. It then asks for the full identifier to erase.
 
-```sh
-ls -l /dev/disk/by-id/
-lsblk -o NAME,PATH,MODEL,SERIAL,SIZE,TYPE,FSTYPE,MOUNTPOINTS
-```
-
-Do not continue without a `/dev/disk/by-id/...` entry for the intended whole
-disk. UTM users should fix the virtual disk serial in UTM before proceeding.
+For `igor-vm`, UTM 4.7.2 or newer automatically gives the VirtIO system disk a
+fixed serial. Its entry should resemble `/dev/disk/by-id/virtio-...`. Stop if
+that entry is absent: shut down the VM, update UTM if necessary, and confirm
+that the non-removable system disk uses the VirtIO interface. Never substitute
+the topology-dependent `/dev/vda` name.
 
 ## Install
 
@@ -57,13 +68,37 @@ Before destructive confirmation, the installer:
 2. requires `flake.lock` and a clean Git checkout;
 3. evaluates the selected host configuration without updating the lock;
 4. rejects a live installer whose architecture differs from the host;
-5. accepts only an unused whole-disk `/dev/disk/by-id/...` path; and
-6. displays its model, serial, size, filesystems, and mount state.
+5. lists the stable identifiers and details for every whole disk;
+6. asks for one complete `/dev/disk/by-id/...` path; and
+7. accepts it only when it resolves to an unused whole disk.
 
-After exact confirmation, it uses the locked Disko app, writes only the
+After exact confirmation, it creates a private copy of the exact checked-out
+commit, hydrates its LFS files, and only then starts Disko. It writes the
 selected host's disk identity and hardware scan, installs `<host>`, and sends
-the login password directly to `chpasswd`. Disko/cryptsetup separately
-requests the LUKS recovery passphrase.
+the login password directly to `chpasswd`. Disko/cryptsetup separately requests
+the LUKS recovery passphrase.
+
+The installed system includes `git-lfs` because the copied repository
+continues to track the wallpaper through LFS. This is unrelated to the Git
+already present on the live ISO.
+
+## Boot the installed system
+
+After the installer finishes:
+
+- On `igor-desktop`, shut down, remove the installation medium, and boot from
+  the installed disk.
+- On `igor-vm`, shut down the guest, use UTM's removable-drive control to eject
+  the NixOS ISO, and start the VM from its VirtIO disk.
+
+If the VM fails to reach the graphical desktop, stop it and edit its display:
+
+1. replace `virtio-gpu-gl-pci` with `virtio-ramfb`;
+2. disable accelerated rendering; and
+3. boot the same `igor-vm` configuration again.
+
+This fallback changes only virtual graphics performance, not the guest's
+architecture or NixOS configuration.
 
 ## First boot
 
@@ -82,6 +117,11 @@ git commit -m "Record igor-vm hardware"
 ```
 
 Replace `igor-vm` with `igor-desktop` for the physical machine. Do not enable
-Secure Boot or TPM unlock yet. Continue with
-[secure-boot.md](secure-boot.md) to verify key generation, rebuild signed boot
-artifacts, and enroll them deliberately.
+Secure Boot or TPM unlock yet.
+
+For `igor-vm`, shut down after this successful first boot and take a
+post-installation UTM snapshot. The snapshot supplements, but does not replace,
+the LUKS recovery passphrase.
+
+Continue with [secure-boot.md](secure-boot.md) to verify key generation,
+rebuild signed boot artifacts, and enroll them deliberately.

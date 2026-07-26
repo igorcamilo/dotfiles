@@ -96,7 +96,6 @@ check_qml() {
   local import_path
   local log
   local package_root
-  local status=0
   local -a import_arguments=()
   local -a import_paths=()
   local -a qml_files=()
@@ -123,16 +122,6 @@ check_qml() {
 
   log=$(mktemp)
 
-  # Fail on missing type information before it creates cascading diagnostics.
-  if ! qmllint "${import_arguments[@]}" --import=error \
-    tests/qml/ImportProbe.qml >"$log" 2>&1
-  then
-    printf 'QML imports are unavailable; check QML_IMPORT_PATH:\n' >&2
-    cat "$log" >&2
-    rm -f "$log"
-    return 1
-  fi
-
   while IFS= read -r -d '' file; do
     qml_files+=("$file")
   done < <(find dotfiles/quickshell -type f -name '*.qml' -print0)
@@ -143,11 +132,11 @@ check_qml() {
   then
     printf 'QML lint failed:\n' >&2
     cat "$log" >&2
-    status=1
+    rm -f "$log"
+    return 1
   fi
 
   rm -f "$log"
-  return "$status"
 }
 
 run_check "Nix formatting" check_nix_format

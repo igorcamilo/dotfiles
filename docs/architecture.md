@@ -173,6 +173,8 @@ The shared system settings are:
 | zram swap | Uses compressed RAM as swap before relying on disk |
 | Hyprland, Qt, and dconf | Provides the Wayland desktop foundations |
 | greetd and Quickshell | Provides the graphical login flow |
+| Tracked wallpaper | Provides one background for the desktop, login, and lock screen |
+| Git LFS | Keeps the installed wallpaper checkout usable |
 | Nix flakes | Enables the command and flake interfaces used here |
 | `stateVersion` | Keeps compatibility defaults stable across upgrades |
 
@@ -232,9 +234,9 @@ Before confirmation it:
 3. requires a clean Git checkout and committed lock file;
 4. evaluates the selected host configuration;
 5. rejects a live ISO with the wrong CPU architecture;
-6. accepts only a whole-disk `/dev/disk/by-id/...` path;
-7. rejects mounted or active disks; and
-8. shows the disk model, size, filesystems, and mounts.
+6. lists every whole-disk `/dev/disk/by-id/...` path with identifying details;
+7. asks which complete identifier to erase; and
+8. rejects mounted, active, or non-disk selections.
 
 The user must type the complete stable disk identifier as part of the
 confirmation. Nothing destructive runs before that succeeds.
@@ -242,13 +244,14 @@ confirmation. Nothing destructive runs before that succeeds.
 After confirmation it:
 
 1. copies the exact checked-out commit to a temporary directory;
-2. writes the selected disk identifier into that copy;
-3. asks the locked Disko tool to partition, encrypt, and mount the disk;
-4. moves the copied repository into the target user's home;
-5. generates hardware data without filesystems;
-6. installs the selected host configuration;
-7. sends the login password to `chpasswd` over standard input; and
-8. clears temporary password variables and files.
+2. obtains Git LFS from the locked Nixpkgs input and downloads tracked assets;
+3. writes the selected disk identifier into that copy;
+4. asks the locked Disko tool to partition, encrypt, and mount the disk;
+5. moves the copied repository into the target user's home;
+6. generates hardware data without filesystems;
+7. installs the selected host configuration;
+8. sends the login password to `chpasswd` over standard input; and
+9. clears temporary password variables and files.
 
 The password, its hash, and the LUKS passphrase are never written to Git.
 
@@ -353,6 +356,7 @@ and full Git history.
 | `dotfiles/quickshell/greeter/` | Login screen |
 | `dotfiles/quickshell/lockscreen/` | Lock screen |
 | `dotfiles/quickshell/shared/` | Reused login and lock components |
+| `wallpapers/` | Images installed by the shared system configuration |
 | `install.sh` | Destructive installation workflow |
 | `tests/` | Non-destructive installer unit tests |
 | `scripts/check.sh` | Readable repository-level validation |

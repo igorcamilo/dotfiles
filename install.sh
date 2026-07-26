@@ -146,6 +146,44 @@ validate_environment() {
   fi
 }
 
+list_disks_by_id() {
+  local by_id_directory=${1:-/dev/disk/by-id}
+  local canonical_device
+  local device_type
+  local disk_found=false
+  local id_path
+  local status
+
+  [[ -d "$by_id_directory" ]] \
+    || fail "disk identifier directory does not exist: ${by_id_directory}"
+
+  echo "Whole disks available by stable identifier:"
+
+  for id_path in "$by_id_directory"/*; do
+    [[ -L "$id_path" ]] || continue
+
+    canonical_device=$(readlink -f -- "$id_path" 2>/dev/null) || continue
+    device_type=$(lsblk -dnro TYPE "$canonical_device" 2>/dev/null) || continue
+    [[ "$device_type" == "disk" ]] || continue
+
+    disk_found=true
+
+    if lsblk -nrpo MOUNTPOINTS "$canonical_device" | grep -q '[^[:space:]]'; then
+      status="mounted or active (cannot be selected)"
+    else
+      status="not mounted"
+    fi
+
+    echo
+    echo "Identifier: ${id_path}"
+    lsblk -d -o PATH,MODEL,SERIAL,SIZE,TRAN,TYPE "$canonical_device"
+    echo "Status: ${status}"
+  done
+
+  [[ "$disk_found" == "true" ]] \
+    || fail "no whole disks found under ${by_id_directory}"
+}
+
 resolve_and_validate_disk() {
   local requested_device=$1
   local canonical_device
@@ -167,17 +205,42 @@ resolve_and_validate_disk() {
   printf '%s\n' "$canonical_device"
 }
 
+hydrate_lfs_checkout() {
+  local checkout=$1
+
+  echo "Downloading Git LFS files for the installation checkout."
+
+  (
+    cd "$checkout"
+
+    nix shell \
+      --no-update-lock-file \
+      --inputs-from . \
+      nixpkgs#git-lfs \
+      --command git-lfs install --local
+
+    nix shell \
+      --no-update-lock-file \
+      --inputs-from . \
+      nixpkgs#git-lfs \
+      --command git-lfs pull
+  ) || fail "could not download the repository's Git LFS files"
+}
+
 prepare_exact_checkout() {
   local source_root=$1
   local staged_repo=$2
   local source_remote
 
-  git clone --quiet --no-hardlinks "$source_root" "$staged_repo"
+  GIT_LFS_SKIP_SMUDGE=1 \
+    git clone --quiet --no-hardlinks "$source_root" "$staged_repo"
 
   source_remote=$(git -C "$source_root" config --get remote.origin.url || true)
   if [[ -n "$source_remote" ]]; then
     git -C "$staged_repo" remote set-url origin "$source_remote"
   fi
+
+  hydrate_lfs_checkout "$staged_repo"
 }
 
 run_install() {
@@ -209,10 +272,10 @@ run_install() {
   echo "Target platform: ${EXPECTED_SYSTEM}"
   echo "Source commit: ${source_commit}"
   echo
-  lsblk -o NAME,PATH,MODEL,SIZE,TYPE,FSTYPE,MOUNTPOINTS
+  list_disks_by_id
   echo
 
-  read -r -p "Target whole disk (/dev/disk/by-id/...): " requested_device
+  read -r -p "Enter the full identifier of the disk to erase: " requested_device
   canonical_device=$(resolve_and_validate_disk "$requested_device")
 
   echo
