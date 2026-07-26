@@ -65,4 +65,6 @@ ShellRoot {
             }
         }
     }
+
+    Notifications {}
 }

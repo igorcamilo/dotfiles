@@ -70,6 +70,15 @@
       };
     };
 
+    # Firefox is GTK3, so it already picks up the adw-gtk3-dark theme and
+    # Papirus icons below for its native chrome (dialogs, scrollbars). Its
+    # own tab/toolbar chrome is a separate layer, themed via userChrome on
+    # the profile below once there's a real stylesheet to put there.
+    firefox = {
+      enable = true;
+      profiles.igor.isDefault = true;
+    };
+
     # home-manager-managed (not just enabled in configuration.nix) so that
     # Starship's shell hook below gets woven into ~/.zshrc automatically.
     zsh.enable = true;
