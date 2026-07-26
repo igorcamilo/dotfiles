@@ -250,12 +250,15 @@ After confirmation it:
 1. copies the exact checked-out commit to a temporary directory;
 2. obtains Git LFS from the locked Nixpkgs input and downloads tracked assets;
 3. writes the selected disk identifier into that copy;
-4. asks the locked Disko tool to partition, encrypt, and mount the disk;
+4. asks the locked Disko tool to partition, encrypt, and mount the disk, then
+   verifies all four target mount points;
 5. moves the copied repository into the target user's home;
 6. generates hardware data without filesystems;
-7. installs the selected host configuration;
+7. installs the selected host configuration and verifies its system profile,
+   fallback EFI bootloader, and NixOS boot image;
 8. sends the login password to `chpasswd` over standard input; and
-9. clears temporary password variables and files.
+9. saves the installation log, flushes disk writes, and clears temporary
+   password variables and files.
 
 The password, its hash, and the LUKS passphrase are never written to Git.
 

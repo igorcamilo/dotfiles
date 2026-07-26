@@ -83,6 +83,17 @@ selected host's disk identity and hardware scan, installs `<host>`, and sends
 the login password directly to `chpasswd`. Disko/cryptsetup separately requests
 the LUKS recovery passphrase.
 
+Disko asks for that passphrase twice, and neither entry is echoed. Afterward,
+the installer prints four numbered stages. It has succeeded only if the final
+`INSTALLATION SUCCEEDED` banner appears. A shell prompt, closed terminal, or
+reboot before that banner means the target may contain partitions but is not
+safe to boot.
+
+The live-session log remains at `/tmp/nixos-install-<host>.log` after a
+failure. On success it is also copied to
+`/var/log/dotfiles-install.log` in the installed system. Passwords and
+passphrases are not echoed into the log.
+
 Writing those two host facts deliberately makes the private installation copy
 different from its Git commit. Nix may therefore warn that its Git tree is
 dirty. This warning refers to the private copy being installed, not to the
@@ -104,7 +115,7 @@ already present on the live ISO.
 
 ## Boot the installed system
 
-After the installer finishes:
+Only after the installer prints its success banner:
 
 - On `igor-desktop`, shut down, remove the installation medium, and boot from
   the installed disk.

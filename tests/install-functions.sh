@@ -39,6 +39,12 @@ assert_fails validate_passwords "one" "two"
 assert_fails machine_to_nix_system riscv64
 assert_succeeds validate_host_architecture "aarch64-linux" "aarch64-linux"
 assert_fails validate_host_architecture "aarch64-linux" "x86_64-linux"
+[[ $(system_to_efi_architecture x86_64-linux) == "x64" ]]
+[[ $(system_to_efi_architecture aarch64-linux) == "aa64" ]]
+assert_fails system_to_efi_architecture riscv64-linux
+[[ $(system_to_efi_fallback_filename x86_64-linux) == "BOOTX64.EFI" ]]
+[[ $(system_to_efi_fallback_filename aarch64-linux) == "BOOTAA64.EFI" ]]
+assert_fails system_to_efi_fallback_filename riscv64-linux
 
 unset NIX_CONFIG
 enable_required_nix_features
@@ -187,6 +193,40 @@ assert_fails hardware_config_is_valid \
   "aarch64-linux"
 assert_fails hardware_config_is_valid \
   "${test_temp_dir}/hardware-bad.nix" \
+  "x86_64-linux"
+
+installed_root="${test_temp_dir}/installed-root"
+mkdir -p \
+  "${installed_root}/nix/var/nix/profiles" \
+  "${installed_root}/boot/EFI/BOOT" \
+  "${installed_root}/boot/EFI/systemd" \
+  "${installed_root}/boot/EFI/Linux"
+ln -s /nix/store/test-system \
+  "${installed_root}/nix/var/nix/profiles/system"
+printf 'fallback loader\n' \
+  > "${installed_root}/boot/EFI/BOOT/BOOTAA64.EFI"
+printf 'fallback loader\n' \
+  > "${installed_root}/boot/EFI/BOOT/BOOTX64.EFI"
+printf 'systemd-boot\n' \
+  > "${installed_root}/boot/EFI/systemd/systemd-bootaa64.efi"
+printf 'systemd-boot\n' \
+  > "${installed_root}/boot/EFI/systemd/systemd-bootx64.efi"
+printf 'NixOS boot image\n' \
+  > "${installed_root}/boot/EFI/Linux/nixos-generation-1.efi"
+
+assert_succeeds installed_system_is_bootable \
+  "$installed_root" \
+  "aarch64-linux"
+assert_succeeds installed_system_is_bootable \
+  "$installed_root" \
+  "x86_64-linux"
+rm "${installed_root}/boot/EFI/BOOT/BOOTAA64.EFI"
+assert_fails installed_system_is_bootable \
+  "$installed_root" \
+  "aarch64-linux"
+rm "${installed_root}/boot/EFI/BOOT/BOOTX64.EFI"
+assert_fails installed_system_is_bootable \
+  "$installed_root" \
   "x86_64-linux"
 
 echo "Installer function tests passed."
