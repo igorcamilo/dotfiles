@@ -27,9 +27,11 @@
       "wheel"
       "networkmanager"
     ];
+    shell = pkgs.zsh;
     # The installer sets the initial password imperatively. Passwords remain
     # mutable, so later changes with passwd survive rebuilds.
   };
+  programs.zsh.enable = true;
 
   zramSwap.enable = true;
 
@@ -48,8 +50,10 @@
   # published system-wide via environment.etc rather than home-manager.
   environment = {
     systemPackages = [
+      pkgs.git
       # The installed checkout contains LFS-tracked wallpapers.
       pkgs.git-lfs
+      pkgs.nano
       pkgs.quickshell
     ];
     etc = {
@@ -59,6 +63,11 @@
       "greetd/quickshell".source = ./dotfiles/quickshell;
     };
   };
+
+  # JetBrainsMono Nerd Font: patched with the icon glyphs Starship's prompt
+  # and Ghostty's own UI expect (see home.nix). Installed system-wide, not
+  # just for igor, since fontconfig discovery works the same either way.
+  fonts.packages = [ pkgs.nerd-fonts.jetbrains-mono ];
 
   services.greetd = {
     enable = true;
