@@ -76,6 +76,39 @@ esac
 EOF
 } > "${mock_bin}/nix"
 chmod +x "${mock_bin}/nix"
+
+{
+  printf '#!%s\n' "$BASH"
+  cat <<'EOF'
+set -euo pipefail
+
+device=${*: -1}
+
+if [[ " $* " == *" -dnro TYPE "* ]]; then
+  case "$device" in
+    */mock-disk)
+      printf '%s\n' "disk"
+      ;;
+    */mock-partition)
+      printf '%s\n' "part"
+      ;;
+    *)
+      exit 1
+      ;;
+  esac
+elif [[ " $* " == *" -nrpo MOUNTPOINTS "* ]]; then
+  printf '\n'
+elif [[ " $* " == *" -d -o PATH,MODEL,SERIAL,SIZE,TRAN,TYPE "* ]]; then
+  printf '%s\n' \
+    "PATH MODEL SERIAL SIZE TRAN TYPE" \
+    "${device} TestDisk TEST123 150G virtio disk"
+else
+  exit 1
+fi
+EOF
+} > "${mock_bin}/lsblk"
+chmod +x "${mock_bin}/lsblk"
+
 printf '%s\n' '{ "nodes": {}, "root": "root", "version": 7 }' > "${test_temp_dir}/flake.lock"
 
 with_mock_nix() {
@@ -85,6 +118,18 @@ with_mock_nix() {
 assert_succeeds with_mock_nix validate_flake_host "$test_temp_dir" "igor-vm"
 mkdir -p "${test_temp_dir}/hosts/unknown-output"
 assert_fails with_mock_nix validate_flake_host "$test_temp_dir" "unknown-output"
+
+mkdir -p "${test_temp_dir}/by-id" "${test_temp_dir}/empty-by-id"
+touch "${test_temp_dir}/mock-disk" "${test_temp_dir}/mock-partition"
+ln -s "${test_temp_dir}/mock-disk" "${test_temp_dir}/by-id/virtio-test-disk"
+ln -s "${test_temp_dir}/mock-partition" "${test_temp_dir}/by-id/virtio-test-partition"
+
+disk_inventory=$(with_mock_nix list_disks_by_id "${test_temp_dir}/by-id")
+[[ "$disk_inventory" == *"${test_temp_dir}/by-id/virtio-test-disk"* ]]
+[[ "$disk_inventory" == *"TestDisk TEST123 150G virtio disk"* ]]
+[[ "$disk_inventory" == *"Status: not mounted"* ]]
+[[ "$disk_inventory" != *"virtio-test-partition"* ]]
+assert_fails with_mock_nix list_disks_by_id "${test_temp_dir}/empty-by-id"
 
 printf '%s\n' \
   '{ lib, ... }: {' \

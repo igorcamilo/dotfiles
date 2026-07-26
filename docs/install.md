@@ -25,15 +25,10 @@ Dependency updates are a maintenance task performed inside NixOS with
 `nix flake update`; they are never part of installation. Do not install Nix on
 macOS for this procedure.
 
-Identify a stable whole-disk path:
-
-```sh
-ls -l /dev/disk/by-id/
-lsblk -o NAME,PATH,MODEL,SERIAL,SIZE,TYPE,FSTYPE,MOUNTPOINTS
-```
-
-Do not continue without a `/dev/disk/by-id/...` entry for the intended whole
-disk. UTM users should fix the virtual disk serial in UTM before proceeding.
+The installer lists every whole disk available under `/dev/disk/by-id`, along
+with its device path, model, serial number, size, transport, type, and mount
+status. It then asks for the full identifier to erase. UTM users should fix the
+virtual disk serial in UTM before proceeding so that identifier remains stable.
 
 ## Install
 
@@ -57,8 +52,9 @@ Before destructive confirmation, the installer:
 2. requires `flake.lock` and a clean Git checkout;
 3. evaluates the selected host configuration without updating the lock;
 4. rejects a live installer whose architecture differs from the host;
-5. accepts only an unused whole-disk `/dev/disk/by-id/...` path; and
-6. displays its model, serial, size, filesystems, and mount state.
+5. lists the stable identifiers and details for every whole disk;
+6. asks for one complete `/dev/disk/by-id/...` path; and
+7. accepts it only when it resolves to an unused whole disk.
 
 After exact confirmation, it uses the locked Disko app, writes only the
 selected host's disk identity and hardware scan, installs `<host>`, and sends

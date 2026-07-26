@@ -233,9 +233,9 @@ Before confirmation it:
 3. requires a clean Git checkout and committed lock file;
 4. evaluates the selected host configuration;
 5. rejects a live ISO with the wrong CPU architecture;
-6. accepts only a whole-disk `/dev/disk/by-id/...` path;
-7. rejects mounted or active disks; and
-8. shows the disk model, size, filesystems, and mounts.
+6. lists every whole-disk `/dev/disk/by-id/...` path with identifying details;
+7. asks which complete identifier to erase; and
+8. rejects mounted, active, or non-disk selections.
 
 The user must type the complete stable disk identifier as part of the
 confirmation. Nothing destructive runs before that succeeds.
