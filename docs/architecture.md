@@ -11,22 +11,14 @@ facts with shared modules, and produces one bootable system.
 
 The main data flow is:
 
-```text
-flake.lock fixes dependency versions
-                 │
-                 ▼
-flake.nix selects a host
-                 │
-        ┌────────┴────────┐
-        ▼                 ▼
-shared configuration   hosts/<name>
-desktop, user, disk    hardware, disk ID,
-and security policy    hostname, VM support
-        └────────┬────────┘
-                 ▼
-      one NixOS configuration
-                 ▼
-       bootable system closure
+```mermaid
+flowchart TD
+    lock["flake.lock<br/>fixes dependency versions"] --> flake["flake.nix<br/>selects a host"]
+    flake --> shared["shared configuration<br/>desktop, user, disk,<br/>and security policy"]
+    flake --> host["hosts/&lt;name&gt;<br/>hardware, disk ID,<br/>hostname, VM support"]
+    shared --> merged["one NixOS configuration"]
+    host --> merged
+    merged --> closure["bootable system closure"]
 ```
 
 A “closure” is the complete set of files required by a built system. Building a
@@ -92,10 +84,10 @@ on file order.
 
 There is exactly one configuration for each machine:
 
-```text
-igor-desktop ─── physical desktop, x86_64
-igor-vm ───────── UTM virtual machine, ARM64
-```
+| Host | Machine |
+| --- | --- |
+| `igor-desktop` | Physical desktop, x86_64 |
+| `igor-vm` | UTM virtual machine, ARM64 |
 
 The hostname does not contain the architecture because it names one specific
 machine. Architecture is machine metadata in `flake.nix`.
@@ -259,16 +251,16 @@ The password, its hash, and the LUKS passphrase are never written to Git.
 
 The graphical path is:
 
-```text
-boot
- └─ greetd
-     └─ temporary Hyprland greeter session
-         └─ Quickshell login UI
-             └─ normal Hyprland user session
-                 ├─ Quickshell bar and wallpaper
-                 ├─ Ghostty terminal
-                 ├─ KeePassXC Secret Service
-                 └─ hypridle → Quickshell lock service
+```mermaid
+flowchart TD
+    boot["boot"] --> greetd["greetd"]
+    greetd --> greeter["temporary Hyprland greeter session"]
+    greeter --> loginui["Quickshell login UI"]
+    loginui --> session["normal Hyprland user session"]
+    session --> bar["Quickshell bar and wallpaper"]
+    session --> terminal["Ghostty terminal"]
+    session --> keepassxc["KeePassXC Secret Service"]
+    session --> hypridle["hypridle"] --> lock["Quickshell lock service"]
 ```
 
 System-owned greeter files are installed by `configuration.nix` under
