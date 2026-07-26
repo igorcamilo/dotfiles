@@ -34,6 +34,36 @@
 
   zramSwap.enable = true;
 
+  # AMD GPU: Mesa provides RADV (Vulkan) and RadeonSI (OpenGL) for Hyprland's
+  # rendering, and the redistributable firmware carries the microcode the
+  # amdgpu kernel driver loads for display and video decode/encode.
+  hardware = {
+    enableRedistributableFirmware = true;
+    graphics = {
+      enable = true;
+      enable32Bit = true; # Steam and other 32-bit apps need these too.
+    };
+    bluetooth = {
+      enable = true;
+      powerOnBoot = true;
+    };
+  };
+
+  # PipeWire is the current NixOS-recommended audio server, replacing both
+  # PulseAudio and JACK.
+  security.rtkit.enable = true; # Realtime scheduling for PipeWire.
+  services.pipewire = {
+    enable = true;
+    alsa.enable = true;
+    alsa.support32Bit = true;
+    pulse.enable = true;
+  };
+
+  # Pairing UI and polkit rules for the Bluetooth radio enabled above.
+  services.blueman.enable = true;
+
+  services.fwupd.enable = true;
+
   # Desktop: Hyprland, with Quickshell as the shell layer (bar, wallpaper,
   # lock screen). Wallpaper is drawn by Quickshell itself (a background
   # layer-shell surface), so no separate wallpaper daemon is installed.
@@ -43,8 +73,15 @@
     # Registers zsh as a valid login shell; users.users.igor.shell above
     # is what makes it igor's actual default.
     zsh.enable = true;
+    # Needs the 32-bit graphics support enabled above.
+    steam.enable = true;
   };
   qt.enable = true;
+
+  # GUI privilege prompts (mounting a drive, some NetworkManager actions)
+  # need an authentication agent; home.nix installs Hyprland's own
+  # (hyprpolkitagent) and hyprland.conf starts it.
+  security.polkit.enable = true;
 
   # greetd runs a throwaway Hyprland+Quickshell "greeter" session (see
   # dotfiles/hypr/greeter.conf and dotfiles/quickshell/greeter) that

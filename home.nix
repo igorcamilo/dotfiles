@@ -16,6 +16,16 @@
     homeDirectory = "/home/igor";
     stateVersion = "26.05";
 
+    # hyprpolkitagent: GUI polkit agent, started from hyprland.conf. wofi:
+    # app launcher bound in hyprland.conf. playerctl and wireplumber
+    # (wpctl): back the media-key binds in hyprland.conf.
+    packages = [
+      pkgs.hyprpolkitagent
+      pkgs.wofi
+      pkgs.playerctl
+      pkgs.wireplumber
+    ];
+
     # Hyprland session and Quickshell shells (bar + lock screen). The
     # greeter has its own copy of Quickshell's config, published via
     # environment.etc in configuration.nix instead of home-manager, since
