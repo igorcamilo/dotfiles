@@ -83,6 +83,9 @@ Confirm Lanzaboote generated a non-empty measured-boot policy:
 sudo test -s /var/lib/systemd/pcrlock.json
 ```
 
+Take another VM snapshot or physical-system backup before changing the LUKS
+slots.
+
 Then enroll TPM2 against that policy:
 
 ```sh

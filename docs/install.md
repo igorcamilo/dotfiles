@@ -1,14 +1,19 @@
-# Fresh installation
+# Install NixOS
 
 This procedure erases the selected physical or virtual disk. Keep backups and
 the LUKS recovery passphrase somewhere independent of the target.
 
+## Boot the installation environment
+
+Prepare and boot the installer matching the target:
+
+- For `igor-desktop`, boot an x86_64 NixOS ISO on the physical desktop.
+- For `igor-vm`, first complete [Create the UTM virtual
+  machine](utm-vm.md), then start it from the ARM64/AArch64 NixOS ISO.
+
+All following commands run inside that NixOS environment, never on macOS.
+
 ## Prepare the exact source
-
-Boot the NixOS installer matching the target:
-
-- `x86_64-linux` for `igor-desktop`
-- ARM64/AArch64 for `igor-vm`
 
 Clone and review the configuration:
 
@@ -33,8 +38,13 @@ macOS for this procedure.
 
 The installer lists every whole disk available under `/dev/disk/by-id`, along
 with its device path, model, serial number, size, transport, type, and mount
-status. It then asks for the full identifier to erase. UTM users should fix the
-virtual disk serial in UTM before proceeding so that identifier remains stable.
+status. It then asks for the full identifier to erase.
+
+For `igor-vm`, UTM 4.7.2 or newer automatically gives the VirtIO system disk a
+fixed serial. Its entry should resemble `/dev/disk/by-id/virtio-...`. Stop if
+that entry is absent: shut down the VM, update UTM if necessary, and confirm
+that the non-removable system disk uses the VirtIO interface. Never substitute
+the topology-dependent `/dev/vda` name.
 
 ## Install
 
@@ -72,6 +82,24 @@ The installed system includes `git-lfs` because the copied repository
 continues to track the wallpaper through LFS. This is unrelated to the Git
 already present on the live ISO.
 
+## Boot the installed system
+
+After the installer finishes:
+
+- On `igor-desktop`, shut down, remove the installation medium, and boot from
+  the installed disk.
+- On `igor-vm`, shut down the guest, use UTM's removable-drive control to eject
+  the NixOS ISO, and start the VM from its VirtIO disk.
+
+If the VM fails to reach the graphical desktop, stop it and edit its display:
+
+1. replace `virtio-gpu-gl-pci` with `virtio-ramfb`;
+2. disable accelerated rendering; and
+3. boot the same `igor-vm` configuration again.
+
+This fallback changes only virtual graphics performance, not the guest's
+architecture or NixOS configuration.
+
 ## First boot
 
 Keep Secure Boot disabled. The first boot uses the final host configuration,
@@ -89,6 +117,11 @@ git commit -m "Record igor-vm hardware"
 ```
 
 Replace `igor-vm` with `igor-desktop` for the physical machine. Do not enable
-Secure Boot or TPM unlock yet. Continue with
-[secure-boot.md](secure-boot.md) to verify key generation, rebuild signed boot
-artifacts, and enroll them deliberately.
+Secure Boot or TPM unlock yet.
+
+For `igor-vm`, shut down after this successful first boot and take a
+post-installation UTM snapshot. The snapshot supplements, but does not replace,
+the LUKS recovery passphrase.
+
+Continue with [secure-boot.md](secure-boot.md) to verify key generation,
+rebuild signed boot artifacts, and enroll them deliberately.
