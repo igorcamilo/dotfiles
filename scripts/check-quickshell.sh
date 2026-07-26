@@ -3,10 +3,29 @@
 # Load every complete Quickshell configuration with the real binary.
 # A successful configuration stays running, so timeout exit codes are expected.
 
-set -uo pipefail
+set -euo pipefail
 
-config_root=${1:?Usage: check-quickshell.sh CONFIG_ROOT}
-state_root=${TMPDIR:?TMPDIR must be set}/quickshell-check
+source_root=${1:?Usage: check-quickshell.sh CONFIG_ROOT}
+state_root=$(mktemp -d "${TMPDIR:-/tmp}/quickshell-check.XXXXXX")
+config_root="$state_root/configs"
+
+cleanup() {
+  rm -rf -- "$state_root"
+}
+trap cleanup EXIT
+
+cp -R "$source_root" "$config_root"
+chmod -R u+w "$config_root"
+
+if [[ -z ${QML_IMPORT_PATH:-} ]]; then
+  for binary in qmllint quickshell; do
+    binary_path=$(readlink -f "$(command -v "$binary")")
+    package_root=$(dirname "$(dirname "$binary_path")")
+    qml_path="$package_root/lib/qt-6/qml"
+    QML_IMPORT_PATH="${QML_IMPORT_PATH:+$QML_IMPORT_PATH:}$qml_path"
+  done
+  export QML_IMPORT_PATH
+fi
 
 export NO_COLOR=1
 export QSG_RHI_BACKEND=software

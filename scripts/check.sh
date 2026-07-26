@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Repository-level checks. Run this inside `nix develop`.
+# Repository-level checks. scripts/check-repository.sh supplies the tools.
 #
 # Every check runs even if an earlier check fails. This gives one complete
 # report instead of requiring one fix-and-push cycle per hidden error.
@@ -70,6 +70,8 @@ check_shell() {
     install.sh \
     tests/install-functions.sh \
     scripts/check.sh \
+    scripts/check-repository.sh \
+    scripts/check-system.sh \
     scripts/check-quickshell.sh
 }
 
@@ -78,6 +80,8 @@ check_bash_syntax() {
     install.sh \
     tests/install-functions.sh \
     scripts/check.sh \
+    scripts/check-repository.sh \
+    scripts/check-system.sh \
     scripts/check-quickshell.sh
 }
 
@@ -93,19 +97,26 @@ check_qml() {
   local file
   local import_path
   local log
+  local package_root
   local status=0
   local -a import_arguments=()
   local -a import_paths=()
   local -a qml_files=()
 
-  if [[ -z ${QML_IMPORT_PATH:-} ]]; then
-    printf 'QML_IMPORT_PATH is empty; enter the Nix development shell first.\n' >&2
-    return 1
+  if [[ -n ${QML_IMPORT_PATH:-} ]]; then
+    local IFS=:
+    read -r -a import_paths <<< "$QML_IMPORT_PATH"
+  else
+    for file in qmllint quickshell; do
+      if ! package_root=$(readlink -f "$(command -v "$file")"); then
+        printf 'Could not locate %s in PATH.\n' "$file" >&2
+        return 1
+      fi
+      package_root=$(dirname "$(dirname "$package_root")")
+      import_paths+=("$package_root/lib/qt-6/qml")
+    done
   fi
 
-  local IFS=:
-  # qmllint wants one -I argument per Nix store import directory.
-  read -r -a import_paths <<< "$QML_IMPORT_PATH"
   for import_path in "${import_paths[@]}"; do
     if [[ -n $import_path ]]; then
       import_arguments+=(-I "$import_path")

@@ -40,36 +40,35 @@ sudo nixos-rebuild switch --flake /etc/nixos#igor-desktop
 sudo nixos-rebuild switch --flake /etc/nixos#igor-vm
 ```
 
-Check formatting, static analysis, installer tests, and the configuration for
-the current CPU architecture:
+Check repository files such as Nix, shell, and QML:
 
 ```sh
-nix fmt
-nix flake check --no-update-lock-file --keep-going
+scripts/check-repository.sh
 ```
 
-Enter the development environment, then run the readable repository check
-script directly:
+Evaluate, build, and smoke-test the machine matching the current CPU:
 
 ```sh
-nix develop
-# Run the following commands inside the development shell:
-lefthook install
-scripts/check.sh
+scripts/check-system.sh igor-desktop x86_64-linux
+scripts/check-system.sh igor-vm aarch64-linux
 ```
 
-`lefthook install` is safe to repeat and enables the local pre-commit secret
-scan for this clone.
+Run only the matching command. The scripts fetch their tools from the
+`nixpkgs` revision already recorded in `flake.lock`; no test or development
+environment is embedded in the machine configuration.
 
 Update locked dependencies from the NixOS VM:
 
 ```sh
 nix flake update
-nix flake check --no-update-lock-file --keep-going
+scripts/check-repository.sh
+scripts/check-system.sh igor-vm aarch64-linux
 git diff -- flake.lock
 ```
 
-`flake.lock` must be reviewed and committed with any dependency update.
+Replace the final command with the desktop variant when working on the
+desktop. CI builds the other architecture. `flake.lock` must be reviewed and
+committed with any dependency update.
 
 ## Installation and recovery
 

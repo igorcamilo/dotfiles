@@ -128,15 +128,15 @@ eight generations and measures PCRs 4 and 7 for the TPM policy.
 6. `modules/boot/secure-boot.nix`, the shared boot policy; and
 7. `hosts/<name>/default.nix`, the machine-specific facts.
 
-The host registry records only two facts:
+The two `mkHost` calls record only the architecture and host module:
 
 | Host | System | Host module |
 | --- | --- | --- |
 | `igor-desktop` | `x86_64-linux` | `hosts/igor-desktop/default.nix` |
 | `igor-vm` | `aarch64-linux` | `hosts/igor-vm/default.nix` |
 
-Assertions stop evaluation if a host module sets the wrong hostname or CPU
-architecture.
+CI evaluates those values and rejects a host whose declared hostname or CPU
+architecture does not match its matrix entry.
 
 ## Shared and host-specific configuration
 
@@ -278,31 +278,35 @@ process-detection race.
 
 ## Validation and CI
 
-There is one GitHub Actions workflow:
+`flake.nix` contains no test derivations, lint package lists, formatter, or
+development shell. It describes the two machines and exposes the Disko command
+used by the installer. Validation lives under `scripts/`, where it can be read
+as an ordinary sequence of commands and cannot change the resulting computer.
 
-- an x86 runner evaluates and builds `igor-desktop`;
-- an ARM runner evaluates and builds `igor-vm`;
-- both runners use their native Quickshell binary to load the bar, greeter, and
-  lock-screen configurations;
-- the x86 runner runs the architecture-neutral `scripts/check.sh` once; and
-- a separate job scans the entire Git history for secrets.
+The two architecture jobs are the same matrix job. Each calls
+`scripts/check-system.sh` with a hostname and its expected Nix system. The
+script performs the same work on native x86 and ARM runners:
 
-`scripts/check.sh` runs every repository-level check even if an earlier one
-fails. It covers Nix formatting, dead-code analysis, Nix static analysis,
-ShellCheck, Bash syntax, installer tests, current-tree secret scanning, and QML
-linting. `qmllint` receives explicit Qt and Quickshell import paths, treats a
-missing import as an error, and prints diagnostics only when it fails.
+1. evaluate the hostname and architecture;
+2. build the complete system closure; and
+3. ask the architecture's real Quickshell binary to load the bar, greeter, and
+   lock-screen configurations.
 
-The Quickshell checks complement that static lint. They start each complete
-configuration with an offscreen software renderer and require Quickshell to
-report `Configuration Loaded`. Running this check once per architecture catches
-binary or plugin differences without duplicating every repository-level check.
+Architecture-neutral work runs once in a separate `repository-quality` job.
+`scripts/check-repository.sh` obtains its tools from the locked `nixpkgs` input
+and then runs `scripts/check.sh`. That script checks Nix formatting and static
+analysis, shell syntax and ShellCheck, installer tests, the current tree for
+secrets, and QML with `qmllint`. It continues through independent checks so one
+failure does not hide the others.
+
+Here, `nix shell` only makes those tools available for one command. It does not
+install them permanently or add them to either computer's configuration.
+
+The Quickshell load test complements static QML linting. It uses an offscreen
+software renderer and requires Quickshell to report `Configuration Loaded`.
 It does not exercise Wayland protocols, PAM, greetd, or user interaction; those
-remain VM acceptance tests.
-
-`nix flake check --keep-going` also keeps independent system builds running
-after a failed check. Together, these rules produce one complete failure report
-instead of revealing errors one push at a time.
+remain VM acceptance tests. Another separate job scans the complete Git history
+for secrets.
 
 CI cannot test firmware menus, Secure Boot enrollment, TPM behavior, GPU
 initialization, or recovery passphrases. Those require the acceptance steps in
@@ -324,14 +328,15 @@ Never tracked:
 - TPM enrollment state;
 - files under `secrets/`.
 
-Run `lefthook install` once after entering `nix develop` to enable a local
-pre-commit Gitleaks scan. CI also scans the current tree and full Git history.
+`lefthook.yml` can provide an optional local pre-commit Gitleaks scan when
+`lefthook` and `gitleaks` are available. CI always scans both the current tree
+and full Git history.
 
 ## File guide
 
 | Path | Responsibility |
 | --- | --- |
-| `flake.nix` | Dependencies, two system outputs, tools, and checks |
+| `flake.nix` | Dependencies, two system outputs, and the installer's Disko app |
 | `flake.lock` | Exact dependency revisions |
 | `configuration.nix` | Shared machine-wide settings |
 | `home.nix` | Shared settings owned by Igor |
@@ -347,8 +352,10 @@ pre-commit Gitleaks scan. CI also scans the current tree and full Git history.
 | `install.sh` | Destructive installation workflow |
 | `tests/` | Non-destructive installer unit tests |
 | `scripts/check.sh` | Readable repository-level validation |
+| `scripts/check-repository.sh` | Runs repository checks with locked tools |
+| `scripts/check-system.sh` | Identical native validation for either host |
 | `scripts/check-quickshell.sh` | Native Quickshell configuration load test |
-| `.github/workflows/ci.yml` | Native x86, ARM, and history validation |
+| `.github/workflows/ci.yml` | Native systems, repository quality, and history |
 | `lefthook.yml` | Local pre-commit secret protection |
 | `.gitignore` | Excludes secrets, keys, and local Nix build links |
 | `docs/` | Procedures and this explanation |
@@ -358,8 +365,9 @@ pre-commit Gitleaks scan. CI also scans the current tree and full Git history.
 Add a system-wide package:
 
 1. edit `environment.systemPackages` in `configuration.nix`;
-2. run `nix flake check --no-update-lock-file --keep-going`;
-3. rebuild the intended host.
+2. run `scripts/check-repository.sh`;
+3. run the matching `scripts/check-system.sh` command;
+4. rebuild the intended host.
 
 Add a user program or dotfile:
 
@@ -377,7 +385,7 @@ Update dependencies:
 
 1. run `nix flake update` inside NixOS;
 2. review `flake.lock`;
-3. run the full flake check;
+3. run the repository and matching system check scripts;
 4. commit `flake.lock` with the input change.
 
 Change the disk layout:
