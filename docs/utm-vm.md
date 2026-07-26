@@ -4,72 +4,81 @@ This guide ends when `igor-vm` is ready to boot the NixOS installer. All
 commands run inside NixOS, disk selection, installation, first boot, and
 installation troubleshooting are in [install.md](install.md).
 
-Use UTM 4.7.2 or newer with its **QEMU** backend. The VM is a normal
-file-backed guest; creating it does not require Nix on macOS and does not
-modify the Mac's partition table.
+The repository includes a ready-to-import UTM template. It was created and
+round-trip tested with UTM 4.7.5 on Apple Silicon. The template uses UTM's
+**QEMU** backend; it does not require Nix on macOS and does not modify the
+Mac's partition table.
 
-## Create the basic VM
+## Import the template
 
-Open **UTM → About UTM** and confirm the version is 4.7.2 or newer. Update UTM
-before continuing if it is older.
+1. Open **UTM → About UTM** and confirm that version 4.7.5 is installed. This
+   is the version tested by this repository.
+2. Download the
+   [official NixOS ARM64 minimal ISO](https://nixos.org/download/).
+3. In Finder, open
+   [`templates/igor-vm.utm`](../templates/igor-vm.utm). UTM adds `igor-vm` to
+   its library.
+4. Leave the VM stopped. Select its empty removable CD/DVD drive, choose
+   **Browse…**, and attach the downloaded NixOS ISO.
 
-Download the
-[official NixOS ARM64 minimal ISO](https://nixos.org/download/), then create a
-new **Virtualize → Other** QEMU VM with:
+The ISO remains an external removable disk image. It is deliberately not
+stored in the template or this repository. UTM documents this distinction in
+its [drive settings](https://docs.getutm.app/settings-qemu/drive/drive/).
 
-- name: `igor-vm`
-- architecture: ARM64/AArch64
-- CPU: `default`, hardware hypervisor enabled
-- processors: 6
-- memory: 16 GiB
-- disk: 150 GiB, QCOW2/sparse, VirtIO, non-removable
-- network: `virtio-net-pci`, shared/NAT
-- display: `virtio-gpu-gl-pci`, auto-resolution enabled
-- clipboard sharing: enabled
-- UEFI, RNG, balloon, and TPM 2.0: enabled
-- RTC local-time mode: disabled
+## What the template defines
 
-Save the VM, leave it stopped, and open its settings once more to verify the
-values above. UTM documents the QEMU controls under
+The template contains:
+
+- ARM64/AArch64 QEMU `virt` machine;
+- `default` CPU, hardware virtualization, 6 processors, and 16 GiB memory;
+- empty 150 GiB sparse QCOW2 system disk using the VirtIO interface;
+- empty removable USB CD/DVD drive for the installer ISO;
+- `virtio-net-pci` shared/NAT networking;
+- `virtio-gpu-gl-pci` display with automatic resolution;
+- clipboard sharing, with directory sharing disabled;
+- UEFI, RNG, balloon, and TPM 2.0 devices; and
+- UTC hardware clock rather than RTC local-time mode.
+
+It contains no operating system, ISO, password, Secure Boot key, or TPM state.
+The large virtual capacity does not consume 150 GiB immediately: QCOW2 grows
+as data is written. The complete empty template occupies less than 1 MiB in
+the checkout.
+
+You can inspect these values in UTM's settings or read the template's
+[`config.plist`](../templates/igor-vm.utm/config.plist). UTM documents the
+corresponding controls under
 [System](https://docs.getutm.app/settings-qemu/system/) and
 [QEMU](https://docs.getutm.app/settings-qemu/qemu/).
 
-## Create the disk with a stable identity
+## Keep the system disk identity
 
-UTM 4.7.2 added a fixed serial automatically for VirtIO block devices. There
-is no serial text field to fill in and no custom QEMU argument to add.
+UTM 4.7.2 and newer assign a fixed serial automatically to each VirtIO block
+device. The template already contains the system disk, so there is no serial
+field or custom QEMU argument to add.
 
-With the VM stopped:
-
-1. Open the VM's settings.
-2. Under **Drives**, select the 150 GiB system disk. If it does not exist,
-   choose **New…** under **Drives** and create it.
-3. Set **Image Type** to **Disk Image**.
-4. Set **Interface** to **VirtIO**.
-5. Leave **Removable** disabled and **Raw Image** disabled. This keeps the
-   disk inside the `.utm` bundle as a sparse QCOW2 image.
-6. Save the VM. Do not delete and recreate this drive after installation,
-   because a new virtual block device may receive a new identity.
-
-UTM's drive editor and storage behavior are described in its
-[drive documentation](https://docs.getutm.app/settings-qemu/drive/drive/).
-The automatic fixed serial is documented in the
-[UTM 4.7.2 release notes](https://github.com/utmapp/UTM/releases/tag/v4.7.2).
+Do not delete and recreate that disk after installation. A replacement is a
+different virtual block device and can receive a different
+`/dev/disk/by-id/...` identity. The automatic fixed serial is documented in
+the [UTM 4.7.2 release
+notes](https://github.com/utmapp/UTM/releases/tag/v4.7.2).
 
 ## Prepare custom Secure Boot
 
-Before the first boot, open the stopped VM's **QEMU → Maintenance** settings:
+The template has never been booted and contains fresh UEFI variables without
+preloaded vendor keys. Explicitly request the intended state before the first
+boot:
 
-1. select **Reset UEFI Variables**;
-2. leave **Preload Secure Boot Keys** disabled; and
-3. save the VM.
+1. open the stopped VM's **QEMU → Maintenance** settings;
+2. select **Reset UEFI Variables**;
+3. leave **Preload Secure Boot Keys** disabled; and
+4. save the VM.
 
-These maintenance choices apply on the next VM start. Resetting without
+These maintenance choices apply on the next start. Resetting without
 preloading keys leaves the firmware in Setup Mode for this repository's own
 sbctl keys. Do not preload UTM's Platform Key.
 
 ## Continue with installation
 
-The VM is now ready. Start it from the ARM64 ISO and follow
-[Install NixOS](install.md). That guide contains every remaining step for both
-the VM and the physical desktop.
+Start `igor-vm` from the attached ARM64 ISO and follow
+[Install NixOS](install.md). That guide contains every remaining installation
+step for both the VM and the physical desktop.

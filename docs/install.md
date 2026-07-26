@@ -8,8 +8,9 @@ the LUKS recovery passphrase somewhere independent of the target.
 Prepare and boot the installer matching the target:
 
 - For `igor-desktop`, boot an x86_64 NixOS ISO on the physical desktop.
-- For `igor-vm`, first complete [Create the UTM virtual
-  machine](utm-vm.md), then start it from the ARM64/AArch64 NixOS ISO.
+- For `igor-vm`, first [import and prepare the UTM
+  template](utm-vm.md), then start it from the attached ARM64/AArch64 NixOS
+  ISO.
 
 All following commands run inside that NixOS environment, never on macOS.
 

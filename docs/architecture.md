@@ -342,6 +342,7 @@ and full Git history.
 | `modules/storage/` | Shared encrypted disk layout |
 | `modules/boot/` | Shared Secure Boot and measured-boot policy |
 | `modules/virtualisation/` | UTM guest additions |
+| `templates/igor-vm.utm/` | Importable blank UTM 4.7.5 virtual machine |
 | `dotfiles/hypr/` | Hyprland startup and key bindings |
 | `dotfiles/quickshell/bar/` | User bar and wallpaper |
 | `dotfiles/quickshell/greeter/` | Login screen |
