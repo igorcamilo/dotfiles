@@ -47,7 +47,11 @@
   # user (created automatically by this module), so its files are
   # published system-wide via environment.etc rather than home-manager.
   environment = {
-    systemPackages = [ pkgs.quickshell ];
+    systemPackages = [
+      # The installed checkout contains LFS-tracked wallpapers.
+      pkgs.git-lfs
+      pkgs.quickshell
+    ];
     etc = {
       "wallpaper.jpg".source = ./wallpapers/weic2216b.jpg;
       "greetd/hyprland.conf".source = ./dotfiles/hypr/greeter.conf;

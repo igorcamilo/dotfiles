@@ -61,6 +61,11 @@ mkdir -p "$mock_bin"
   cat <<'EOF'
 set -euo pipefail
 
+if [[ ${1:-} == "shell" ]]; then
+  printf '%s\n' "$*" >> "${MOCK_NIX_LOG:?}"
+  exit 0
+fi
+
 flake_ref=${*: -1}
 case "$flake_ref" in
   *nixosConfigurations.igor-vm.config.nixpkgs.hostPlatform.system)
@@ -118,6 +123,13 @@ with_mock_nix() {
 assert_succeeds with_mock_nix validate_flake_host "$test_temp_dir" "igor-vm"
 mkdir -p "${test_temp_dir}/hosts/unknown-output"
 assert_fails with_mock_nix validate_flake_host "$test_temp_dir" "unknown-output"
+
+mkdir -p "${test_temp_dir}/lfs-checkout"
+export MOCK_NIX_LOG="${test_temp_dir}/nix-shell.log"
+assert_succeeds with_mock_nix hydrate_lfs_checkout "${test_temp_dir}/lfs-checkout"
+grep -Fq -- "--command git-lfs install --local" "$MOCK_NIX_LOG"
+grep -Fq -- "--command git-lfs pull" "$MOCK_NIX_LOG"
+unset MOCK_NIX_LOG
 
 mkdir -p "${test_temp_dir}/by-id" "${test_temp_dir}/empty-by-id"
 touch "${test_temp_dir}/mock-disk" "${test_temp_dir}/mock-partition"

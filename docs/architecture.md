@@ -174,6 +174,7 @@ The shared system settings are:
 | Hyprland, Qt, and dconf | Provides the Wayland desktop foundations |
 | greetd and Quickshell | Provides the graphical login flow |
 | Tracked wallpaper | Provides one background for the desktop, login, and lock screen |
+| Git LFS | Keeps the installed wallpaper checkout usable |
 | Nix flakes | Enables the command and flake interfaces used here |
 | `stateVersion` | Keeps compatibility defaults stable across upgrades |
 
@@ -243,13 +244,14 @@ confirmation. Nothing destructive runs before that succeeds.
 After confirmation it:
 
 1. copies the exact checked-out commit to a temporary directory;
-2. writes the selected disk identifier into that copy;
-3. asks the locked Disko tool to partition, encrypt, and mount the disk;
-4. moves the copied repository into the target user's home;
-5. generates hardware data without filesystems;
-6. installs the selected host configuration;
-7. sends the login password to `chpasswd` over standard input; and
-8. clears temporary password variables and files.
+2. obtains Git LFS from the locked Nixpkgs input and downloads tracked assets;
+3. writes the selected disk identifier into that copy;
+4. asks the locked Disko tool to partition, encrypt, and mount the disk;
+5. moves the copied repository into the target user's home;
+6. generates hardware data without filesystems;
+7. installs the selected host configuration;
+8. sends the login password to `chpasswd` over standard input; and
+9. clears temporary password variables and files.
 
 The password, its hash, and the LUKS passphrase are never written to Git.
 

@@ -21,16 +21,11 @@ Download the official NixOS ARM64 minimal ISO, then create a new
 - UEFI, RNG, balloon, and TPM 2.0: enabled
 - RTC local-time mode: disabled
 
-Give the virtual disk a fixed, non-empty serial. After starting the ISO,
-confirm that udev created a stable whole-disk symlink:
-
-```sh
-lsblk -o NAME,PATH,MODEL,SERIAL,SIZE,TYPE,MOUNTPOINTS
-ls -l /dev/disk/by-id/
-```
-
-The installer deliberately rejects `/dev/vda` and other topology-dependent
-names.
+Give the virtual disk a fixed, non-empty serial. The installer will list the
+resulting whole-disk `/dev/disk/by-id/...` entry together with its model,
+serial, size, and mount status before asking which disk to erase. Stop if the
+expected stable identifier is absent. The installer deliberately rejects
+`/dev/vda` and other topology-dependent names.
 
 ## Prepare custom Secure Boot
 

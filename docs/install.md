@@ -19,6 +19,12 @@ git log -1 --oneline
 git status --short
 ```
 
+The ISO's Git is sufficient for cloning and running the installer; do not
+install another copy. The wallpaper is stored with Git LFS, which is a separate
+tool. The installer obtains the locked `git-lfs` package temporarily, downloads
+the image into its private installation checkout, and stops before changing the
+disk if that download fails. No manual Git LFS setup is required on the ISO.
+
 The installer requires the tracked `flake.lock` and never updates it. If a
 checkout does not contain that file, restore it from Git before continuing.
 Dependency updates are a maintenance task performed inside NixOS with
@@ -56,10 +62,15 @@ Before destructive confirmation, the installer:
 6. asks for one complete `/dev/disk/by-id/...` path; and
 7. accepts it only when it resolves to an unused whole disk.
 
-After exact confirmation, it uses the locked Disko app, writes only the
+After exact confirmation, it creates a private copy of the exact checked-out
+commit, hydrates its LFS files, and only then starts Disko. It writes the
 selected host's disk identity and hardware scan, installs `<host>`, and sends
-the login password directly to `chpasswd`. Disko/cryptsetup separately
-requests the LUKS recovery passphrase.
+the login password directly to `chpasswd`. Disko/cryptsetup separately requests
+the LUKS recovery passphrase.
+
+The installed system includes `git-lfs` because the copied repository
+continues to track the wallpaper through LFS. This is unrelated to the Git
+already present on the live ISO.
 
 ## First boot
 

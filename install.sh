@@ -205,17 +205,42 @@ resolve_and_validate_disk() {
   printf '%s\n' "$canonical_device"
 }
 
+hydrate_lfs_checkout() {
+  local checkout=$1
+
+  echo "Downloading Git LFS files for the installation checkout."
+
+  (
+    cd "$checkout"
+
+    nix shell \
+      --no-update-lock-file \
+      --inputs-from . \
+      nixpkgs#git-lfs \
+      --command git-lfs install --local
+
+    nix shell \
+      --no-update-lock-file \
+      --inputs-from . \
+      nixpkgs#git-lfs \
+      --command git-lfs pull
+  ) || fail "could not download the repository's Git LFS files"
+}
+
 prepare_exact_checkout() {
   local source_root=$1
   local staged_repo=$2
   local source_remote
 
-  git clone --quiet --no-hardlinks "$source_root" "$staged_repo"
+  GIT_LFS_SKIP_SMUDGE=1 \
+    git clone --quiet --no-hardlinks "$source_root" "$staged_repo"
 
   source_remote=$(git -C "$source_root" config --get remote.origin.url || true)
   if [[ -n "$source_remote" ]]; then
     git -C "$staged_repo" remote set-url origin "$source_remote"
   fi
+
+  hydrate_lfs_checkout "$staged_repo"
 }
 
 run_install() {
