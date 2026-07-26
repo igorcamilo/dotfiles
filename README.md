@@ -16,6 +16,10 @@ If Nix and NixOS are new to you, start with
 shows how the files combine, and explains the reason for each major design
 choice.
 
+Human and automated contributors should also read `AGENTS.md`. It keeps Nix
+files limited to readable computer descriptions and keeps development and CI
+machinery outside them.
+
 ## The two configurations
 
 | Configuration | Purpose |

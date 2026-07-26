@@ -3,6 +3,10 @@
 Read `README.md` first, then `docs/architecture.md`. Together they explain the
 machines, terminology, file layout, installation flow, and security model.
 
+This root file is the one canonical set of agent instructions. It deliberately
+uses the tool-neutral `AGENTS.md` convention and does not depend on
+vendor-specific per-agent files or nested-file discovery.
+
 ## Non-negotiable design rules
 
 1. Nix files describe the computers.
@@ -28,6 +32,35 @@ machines, terminology, file layout, installation flow, and security model.
    - Put reusable validation in `scripts/` and installer tests in `tests/`.
    - Keep x86_64 and AArch64 system validation identical.
    - Run architecture-neutral checks once in a separate CI job.
+
+## Nix module boundaries
+
+- Give each module one clear owner, such as storage, boot, or UTM integration.
+- Split a file when two concerns can be named and understood independently.
+- Keep related option declarations together so a reader can understand the
+  complete behavior without chasing one-option fragments.
+- Prefer ordinary NixOS options over custom options. Introduce a custom option
+  only when it is the clean interface between genuinely separate modules.
+- Keep Disko as the sole owner of partitions, filesystems, and mount points.
+- Keep firmware enrollment manual. Configuration may prepare and sign boot
+  artifacts but must not silently change firmware trust.
+
+## Validation architecture
+
+- Keep scripts readable from top to bottom and give every script one purpose.
+- Obtain temporary tools from the locked `nixpkgs` input with
+  `nix shell --inputs-from`; do not add development or check outputs to the
+  flake.
+- Both native architectures run the same `check-system.sh` code path through
+  one CI matrix. Only the host, Nix system, and native runner differ.
+- Formatting, static analysis, shell tests, QML linting, and current-tree
+  secret scanning run once in a separate repository-quality job.
+- Full-history secret scanning remains separate from native system validation.
+- Every CI Nix command uses the committed lock without updating it.
+- Do not add emulation or cross-compilation for these two machines.
+- A test must not require a workaround in the installed-computer description.
+  Fix or remove such a test instead.
+- Never write generated test state into the checkout.
 
 ## Repository map
 

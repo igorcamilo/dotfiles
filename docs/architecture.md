@@ -339,7 +339,7 @@ and full Git history.
 
 | Path | Responsibility |
 | --- | --- |
-| `AGENTS.md` and scoped copies | Navigation and design rules for coding agents |
+| `AGENTS.md` | Tool-neutral navigation and agent design rules |
 | `flake.nix` | Dependencies, two system outputs, and the installer's Disko app |
 | `flake.lock` | Exact dependency revisions |
 | `configuration.nix` | Shared machine-wide settings |
