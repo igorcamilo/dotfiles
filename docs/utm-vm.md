@@ -70,10 +70,37 @@ corresponding controls under
 [System](https://docs.getutm.app/settings-qemu/system/) and
 [QEMU](https://docs.getutm.app/settings-qemu/qemu/).
 
-UTM presents the graphical display and built-in terminal as separate VM
-outputs. Use the graphical display normally. Keep the terminal available as a
-recovery path: the ARM guest exposes `ttyAMA0` there even when the graphical
-login cannot start.
+## Open the recovery terminal
+
+`ttyAMA0` is Linux's name for the first serial port on this emulated ARM
+machine. It is not a username, command, or second VM. The graphical display
+and this serial port are two views into the same running VM:
+
+- the graphical display shows the boot menu, disk-unlock prompt, and desktop;
+- UTM's built-in terminal connects to `ttyAMA0` and provides a text login when
+  the graphical login is unavailable.
+
+The template already contains the required serial device. When the VM starts,
+UTM normally opens a separate window for each graphical display and built-in
+terminal. To reach the terminal:
+
+1. look for the additional black terminal window that opens with the VM;
+2. if it was closed or hidden, click the **display** button—the overlapping
+   rectangles at the right of the running VM's toolbar—and select the terminal
+   output;
+3. press Return if no prompt is visible; and
+4. at `igor-vm login:`, enter `igor` and the password chosen during
+   installation.
+
+An existing VM copied before the template gained this device will not update
+automatically. With that VM fully stopped, open its settings, add a **Serial**
+device, set **Mode** to **Built-in Terminal** and **Target** to **Automatic**,
+then save and start it again.
+
+UTM documents both the
+[built-in terminal connection](https://docs.getutm.app/settings-qemu/devices/serial/)
+and reopening a closed terminal with the
+[toolbar's display button](https://docs.getutm.app/advanced/multiple-displays/).
 
 ## Keep the system disk identity
 

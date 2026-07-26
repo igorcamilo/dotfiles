@@ -2,8 +2,11 @@
 
 ## Recovery paths
 
-- In UTM, switch to the VM's built-in terminal and log in through `ttyAMA0` if
-  greetd, Hyprland, or Quickshell fails.
+- In UTM, use
+  [the built-in recovery terminal](utm-vm.md#open-the-recovery-terminal) if
+  greetd, Hyprland, or Quickshell fails. It is a separate UTM window connected
+  to `ttyAMA0`, the VM's first emulated ARM serial port. Press Return, then log
+  in as `igor` with the password chosen during installation.
 - On the physical desktop, use Ctrl+Alt+F3 (or another free VT) if graphical
   login fails.
 - Select an older NixOS generation from the boot menu after a broken rebuild.
