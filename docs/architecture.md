@@ -173,6 +173,7 @@ The shared system settings are:
 | zram swap | Uses compressed RAM as swap before relying on disk |
 | Hyprland, Qt, and dconf | Provides the Wayland desktop foundations |
 | greetd and Quickshell | Provides the graphical login flow |
+| Tracked wallpaper | Provides one background for the desktop, login, and lock screen |
 | Nix flakes | Enables the command and flake interfaces used here |
 | `stateVersion` | Keeps compatibility defaults stable across upgrades |
 
@@ -353,6 +354,7 @@ and full Git history.
 | `dotfiles/quickshell/greeter/` | Login screen |
 | `dotfiles/quickshell/lockscreen/` | Lock screen |
 | `dotfiles/quickshell/shared/` | Reused login and lock components |
+| `wallpapers/` | Images installed by the shared system configuration |
 | `install.sh` | Destructive installation workflow |
 | `tests/` | Non-destructive installer unit tests |
 | `scripts/check.sh` | Readable repository-level validation |

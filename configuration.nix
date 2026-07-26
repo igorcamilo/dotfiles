@@ -49,6 +49,7 @@
   environment = {
     systemPackages = [ pkgs.quickshell ];
     etc = {
+      "wallpaper.jpg".source = ./wallpapers/weic2216b.jpg;
       "greetd/hyprland.conf".source = ./dotfiles/hypr/greeter.conf;
       "greetd/quickshell".source = ./dotfiles/quickshell/greeter;
       "greetd/shared".source = ./dotfiles/quickshell/shared;

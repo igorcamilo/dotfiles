@@ -22,8 +22,6 @@ with `cryptsetup open --test-passphrase`.
 - QML authentication assumes the default password-only PAM conversation.
 - Audio, a graphical polkit agent, notifications, and complete portal
   integration are follow-up workstation work.
-- `/etc/wallpaper.jpg` is still a machine-local asset; a missing file falls
-  back to the configured dark background.
 
 Native x86_64 and ARM64 CI can build both system closures and lint the
 shared QML, but it cannot validate firmware enrollment, TPM behavior, GPU

@@ -5,7 +5,7 @@ import Quickshell.Wayland
 
 ShellRoot {
     // Wallpaper: one background layer-shell surface per screen.
-    // Swap the path below for a real image; none is committed here.
+    // configuration.nix installs the repository image at /etc/wallpaper.jpg.
     Variants {
         model: Quickshell.screens
 
@@ -25,8 +25,6 @@ ShellRoot {
 
             Image {
                 anchors.fill: parent
-                // World-readable: the greeter (a different system user)
-                // needs to read this file too. See README.
                 source: "file:///etc/wallpaper.jpg"
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
