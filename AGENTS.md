@@ -71,6 +71,7 @@ vendor-specific per-agent files or nested-file discovery.
 - `hosts/igor-desktop/`: physical x86_64 host facts.
 - `hosts/igor-vm/`: UTM AArch64 guest facts.
 - `modules/`: shared storage, boot, and virtualization concerns.
+- `templates/igor-vm.utm/`: blank UTM VM definition without installation media.
 - `dotfiles/`: Hyprland and Quickshell runtime configuration.
 - `install.sh`: destructive installation workflow.
 - `scripts/`: non-destructive development and CI validation.

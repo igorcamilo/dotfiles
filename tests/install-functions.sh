@@ -40,6 +40,14 @@ assert_fails machine_to_nix_system riscv64
 assert_succeeds validate_host_architecture "aarch64-linux" "aarch64-linux"
 assert_fails validate_host_architecture "aarch64-linux" "x86_64-linux"
 
+unset NIX_CONFIG
+enable_required_nix_features
+[[ "$NIX_CONFIG" == "extra-experimental-features = nix-command flakes" ]]
+
+NIX_CONFIG="warn-dirty = false"
+enable_required_nix_features
+[[ "$NIX_CONFIG" == $'warn-dirty = false\nextra-experimental-features = nix-command flakes' ]]
+
 mkdir -p "${test_temp_dir}/hosts/igor-desktop" "${test_temp_dir}/hosts/igor-vm"
 write_disk_device \
   "/dev/disk/by-id/wwn-desktop" \
@@ -60,6 +68,10 @@ mkdir -p "$mock_bin"
   printf '#!%s\n' "$BASH"
   cat <<'EOF'
 set -euo pipefail
+
+# Match a graphical live ISO that has not enabled the flake interfaces globally.
+[[ ${NIX_CONFIG:-} == *"extra-experimental-features = nix-command flakes"* ]] \
+  || exit 2
 
 if [[ ${1:-} == "shell" ]]; then
   printf '%s\n' "$*" >> "${MOCK_NIX_LOG:?}"

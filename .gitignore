@@ -1,5 +1,4 @@
-*.hash
+.DS_Store
 *.key
-secrets/
 result
 result-*

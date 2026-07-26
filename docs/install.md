@@ -8,8 +8,9 @@ the LUKS recovery passphrase somewhere independent of the target.
 Prepare and boot the installer matching the target:
 
 - For `igor-desktop`, boot an x86_64 NixOS ISO on the physical desktop.
-- For `igor-vm`, first complete [Create the UTM virtual
-  machine](utm-vm.md), then start it from the ARM64/AArch64 NixOS ISO.
+- For `igor-vm`, first [import and prepare the UTM
+  template](utm-vm.md), then start it from the attached ARM64/AArch64 NixOS
+  ISO.
 
 All following commands run inside that NixOS environment, never on macOS.
 
@@ -35,6 +36,10 @@ checkout does not contain that file, restore it from Git before continuing.
 Dependency updates are a maintenance task performed inside NixOS with
 `nix flake update`; they are never part of installation. Do not install Nix on
 macOS for this procedure.
+
+The graphical live ISO may leave Nix's flake command-line interfaces disabled.
+`install.sh` enables `nix-command` and `flakes` only for itself and its child
+processes. You do not need to edit the ISO's Nix configuration.
 
 The installer lists every whole disk available under `/dev/disk/by-id`, along
 with its device path, model, serial number, size, transport, type, and mount

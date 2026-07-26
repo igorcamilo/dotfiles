@@ -11,22 +11,14 @@ facts with shared modules, and produces one bootable system.
 
 The main data flow is:
 
-```text
-flake.lock fixes dependency versions
-                 │
-                 ▼
-flake.nix selects a host
-                 │
-        ┌────────┴────────┐
-        ▼                 ▼
-shared configuration   hosts/<name>
-desktop, user, disk    hardware, disk ID,
-and security policy    hostname, VM support
-        └────────┬────────┘
-                 ▼
-      one NixOS configuration
-                 ▼
-       bootable system closure
+```mermaid
+flowchart TD
+    lock["flake.lock<br/>fixes dependency versions"] --> flake["flake.nix<br/>selects a host"]
+    flake --> shared["shared configuration<br/>desktop, user, disk,<br/>and security policy"]
+    flake --> host["hosts/&lt;name&gt;<br/>hardware, disk ID,<br/>hostname, VM support"]
+    shared --> merged["one NixOS configuration"]
+    host --> merged
+    merged --> closure["bootable system closure"]
 ```
 
 A “closure” is the complete set of files required by a built system. Building a
@@ -92,10 +84,10 @@ on file order.
 
 There is exactly one configuration for each machine:
 
-```text
-igor-desktop ─── physical desktop, x86_64
-igor-vm ───────── UTM virtual machine, ARM64
-```
+| Host | Machine |
+| --- | --- |
+| `igor-desktop` | Physical desktop, x86_64 |
+| `igor-vm` | UTM virtual machine, ARM64 |
 
 The hostname does not contain the architecture because it names one specific
 machine. Architecture is machine metadata in `flake.nix`.
@@ -227,6 +219,11 @@ installer replaces only the selected host's placeholder with the real scan.
 `install.sh` is intentionally more defensive than the rest of the repository
 because it destroys a disk. Its work is divided by the confirmation boundary.
 
+The graphical ISO includes Nix but may leave its flake interfaces disabled.
+The installer enables `nix-command` and `flakes` through its own process
+environment, which also covers the Nix commands it starts without editing the
+live system's configuration.
+
 Before confirmation it:
 
 1. requires root and UEFI;
@@ -259,16 +256,16 @@ The password, its hash, and the LUKS passphrase are never written to Git.
 
 The graphical path is:
 
-```text
-boot
- └─ greetd
-     └─ temporary Hyprland greeter session
-         └─ Quickshell login UI
-             └─ normal Hyprland user session
-                 ├─ Quickshell bar and wallpaper
-                 ├─ Ghostty terminal
-                 ├─ KeePassXC Secret Service
-                 └─ hypridle → Quickshell lock service
+```mermaid
+flowchart TD
+    boot["boot"] --> greetd["greetd"]
+    greetd --> greeter["temporary Hyprland greeter session"]
+    greeter --> loginui["Quickshell login UI"]
+    loginui --> session["normal Hyprland user session"]
+    session --> bar["Quickshell bar and wallpaper"]
+    session --> terminal["Ghostty terminal"]
+    session --> keepassxc["KeePassXC Secret Service"]
+    session --> hypridle["hypridle"] --> lock["Quickshell lock service"]
 ```
 
 System-owned greeter files are installed by `configuration.nix` under
@@ -331,8 +328,7 @@ Never tracked:
 - login passwords or hashes;
 - LUKS passphrases;
 - Secure Boot private keys under `/var/lib/sbctl`;
-- TPM enrollment state;
-- files under `secrets/`.
+- TPM enrollment state.
 
 `lefthook.yml` can provide an optional local pre-commit Gitleaks scan when
 `lefthook` and `gitleaks` are available. CI always scans both the current tree
@@ -351,6 +347,7 @@ and full Git history.
 | `modules/storage/` | Shared encrypted disk layout |
 | `modules/boot/` | Shared Secure Boot and measured-boot policy |
 | `modules/virtualisation/` | UTM guest additions |
+| `templates/igor-vm.utm/` | Importable blank UTM 4.7.5 virtual machine |
 | `dotfiles/hypr/` | Hyprland startup and key bindings |
 | `dotfiles/quickshell/bar/` | User bar and wallpaper |
 | `dotfiles/quickshell/greeter/` | Login screen |
@@ -364,7 +361,7 @@ and full Git history.
 | `scripts/check-system.sh` | Identical native validation for either host |
 | `.github/workflows/ci.yml` | Native systems, repository quality, and history |
 | `lefthook.yml` | Local pre-commit secret protection |
-| `.gitignore` | Excludes secrets, keys, and local Nix build links |
+| `.gitignore` | Excludes local key files and Nix build links |
 | `docs/` | Procedures and this explanation |
 
 ## Common change recipes

@@ -79,7 +79,7 @@ committed with any dependency update.
 Installation erases the selected disk. Read the relevant guide before running
 the installer:
 
-- [Create the UTM VM](docs/utm-vm.md) — VM only
+- [Import the UTM VM template](docs/utm-vm.md) — VM creation only
 - [Install NixOS](docs/install.md) — physical desktop and VM
 - [Secure Boot and TPM setup](docs/secure-boot.md)
 - [Recovery and known limitations](docs/recovery.md)
