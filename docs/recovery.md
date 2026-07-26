@@ -2,10 +2,14 @@
 
 ## Recovery paths
 
-- Use Ctrl+Alt+F3 (or another free VT) if greetd or Quickshell fails.
+- In UTM, switch to the VM's built-in terminal and log in through `ttyAMA0` if
+  greetd, Hyprland, or Quickshell fails.
+- On the physical desktop, use Ctrl+Alt+F3 (or another free VT) if graphical
+  login fails.
 - Select an older NixOS generation from the boot menu after a broken rebuild.
-- Boot the architecture-matching NixOS installer, unlock and mount the target, then rebuild from
-  `/mnt/home/igor/dotfiles` if no installed generation works.
+- Boot the architecture-matching NixOS installer, unlock and mount the target,
+  then rebuild from `/mnt/home/igor/dotfiles` if no installed generation
+  works.
 - Keep the LUKS recovery passphrase and a backup of Secure Boot keys outside
   the encrypted disk.
 

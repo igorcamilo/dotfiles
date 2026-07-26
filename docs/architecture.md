@@ -180,8 +180,9 @@ Home Manager owns:
 | Ghostty | Provides the configured terminal |
 | hypridle | Locks after 5 minutes and blanks displays 30 seconds later |
 
-The VM adds only hardware graphics, the QEMU guest agent, and the SPICE agent.
-Everything else is shared with the desktop.
+The VM adds hardware graphics, a graphical boot console, the QEMU guest agent,
+and the SPICE agent. Its UTM template also exposes the ARM serial console as a
+built-in recovery terminal. Everything else is shared with the desktop.
 
 ## Storage and hardware
 
@@ -271,6 +272,10 @@ flowchart TD
 System-owned greeter files are installed by `configuration.nix` under
 `/etc/greetd`. User-owned session files are installed by Home Manager from
 `home.nix`.
+
+Both transitions into Hyprland use `start-hyprland`, Hyprland's supported
+launcher. It prepares the session environment before starting the compositor;
+the greeter additionally passes its small system-owned configuration file.
 
 The lock screen is a systemd user service. Starting an already-running service
 is safe, so keyboard, idle, and suspend events can all request a lock without a

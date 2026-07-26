@@ -111,6 +111,11 @@ After the installer finishes:
 - On `igor-vm`, shut down the guest, use UTM's removable-drive control to eject
   the NixOS ISO, and start the VM from its VirtIO disk.
 
+The VM configuration keeps early boot and the LUKS prompt visible on the
+graphical display. Its UTM template also exposes a built-in terminal connected
+to `ttyAMA0`. If graphical login fails, switch to that terminal output and log
+in there to inspect or rebuild the system; no boot-menu edit is required.
+
 If the VM fails to reach the graphical desktop, stop it and edit its display:
 
 1. replace `virtio-gpu-gl-pci` with `virtio-ramfb`;
