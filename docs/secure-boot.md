@@ -1,7 +1,6 @@
 # Secure Boot, measured boot, and TPM2
 
-Complete these steps separately on each host. Replace `<host>` with
-`igor-desktop` or `igor-vm`.
+Complete these steps on `igor-desktop`.
 
 ## Prepare and sign
 
@@ -36,21 +35,18 @@ Rebuild the same host configuration now that the keys exist, then verify every
 boot artifact:
 
 ```sh
-sudo nixos-rebuild switch --flake "/etc/nixos#<host>"
+sudo nixos-rebuild switch --flake "/etc/nixos#igor-desktop"
 sudo sbctl verify
 ```
 
 Do not enroll keys unless the installed bootloader and all UKIs are reported
 signed. The configuration deliberately does not enable Lanzaboote's automatic
-firmware enrollment. Take a VM snapshot or physical-system backup now.
+firmware enrollment. Take a full system backup now.
 
 ## Enroll keys
 
-For `igor-vm`, UTM should already be in Setup Mode because its UEFI variables
-were reset without preloaded keys as described in [utm-vm.md](utm-vm.md).
-
-For `igor-desktop`, enter firmware Setup Mode using the motherboard vendor's
-instructions only after signature verification.
+Enter firmware Setup Mode using the motherboard vendor's instructions only
+after signature verification.
 
 Enroll the repository's key while retaining Microsoft certificates:
 
@@ -60,7 +56,7 @@ sudo sbctl enroll-keys --microsoft
 
 Some physical devices also require `--firmware-builtin` to preserve vendor
 firmware-update keys. Check the hardware vendor's instructions before using
-that option. It is not needed for the UTM VM.
+that option.
 
 Reboot and verify:
 
@@ -116,8 +112,7 @@ sudo nix eval --impure --raw --expr '
 
 Proceed only when this prints `PCR policy protects PCRs 4 and 7.`
 
-Take another VM snapshot or physical-system backup before changing the LUKS
-slots.
+Take another full system backup before changing the LUKS slots.
 
 Then enroll TPM2 against that policy:
 

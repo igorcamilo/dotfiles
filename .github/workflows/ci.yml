@@ -13,19 +13,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  validate-systems:
-    name: Validate ${{ matrix.system }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - host: igor-desktop
-            system: x86_64-linux
-            runner: ubuntu-24.04
-          - host: igor-vm
-            system: aarch64-linux
-            runner: ubuntu-24.04-arm
-    runs-on: ${{ matrix.runner }}
+  validate-system:
+    name: Validate igor-desktop
+    runs-on: ubuntu-24.04
     timeout-minutes: 120
     steps:
       - name: Check out repository
@@ -46,7 +36,7 @@ jobs:
         uses: DeterminateSystems/nix-installer-action@v22
 
       - name: Validate and build native host
-        run: scripts/check-system.sh "${{ matrix.host }}" "${{ matrix.system }}"
+        run: scripts/check-system.sh igor-desktop x86_64-linux
 
       - name: Confirm the checkout stayed clean
         if: always()

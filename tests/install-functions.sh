@@ -20,9 +20,9 @@ test_temp_dir=$(mktemp -d /tmp/nixos-install-tests.XXXXXX)
 trap 'rm -rf -- "$test_temp_dir"' EXIT
 
 assert_succeeds validate_host_name "igor-desktop"
-assert_succeeds validate_host_name "igor-vm"
-assert_fails validate_host_name "../igor-vm"
-assert_fails validate_host_name "IGOR-VM"
+assert_succeeds validate_host_name "example-host"
+assert_fails validate_host_name "../example-host"
+assert_fails validate_host_name "EXAMPLE-HOST"
 
 assert_succeeds validate_disk_path "/dev/disk/by-id/nvme-example_123"
 assert_fails validate_disk_path "/dev/nvme0n1"
@@ -72,16 +72,16 @@ assert_fails run_with_progress \
   'printf "%s\n" "logged failure"; exit 7'
 grep -Fq "logged failure" "$INSTALL_LOG"
 
-mkdir -p "${test_temp_dir}/hosts/igor-desktop" "${test_temp_dir}/hosts/igor-vm"
+mkdir -p "${test_temp_dir}/hosts/igor-desktop" "${test_temp_dir}/hosts/example-host"
 write_disk_device \
   "/dev/disk/by-id/wwn-desktop" \
   "${test_temp_dir}/hosts/igor-desktop/disk-device"
 write_disk_device \
-  "/dev/disk/by-id/wwn-vm" \
-  "${test_temp_dir}/hosts/igor-vm/disk-device"
+  "/dev/disk/by-id/wwn-example" \
+  "${test_temp_dir}/hosts/example-host/disk-device"
 [[ $(<"${test_temp_dir}/hosts/igor-desktop/disk-device") == "/dev/disk/by-id/wwn-desktop" ]]
-[[ $(<"${test_temp_dir}/hosts/igor-vm/disk-device") == "/dev/disk/by-id/wwn-vm" ]]
-assert_fails validate_flake_host "$test_temp_dir" "igor-vm"
+[[ $(<"${test_temp_dir}/hosts/example-host/disk-device") == "/dev/disk/by-id/wwn-example" ]]
+assert_fails validate_flake_host "$test_temp_dir" "example-host"
 assert_fails validate_flake_host "$test_temp_dir" "unknown-host"
 
 mock_bin="${test_temp_dir}/bin"
@@ -117,11 +117,11 @@ fi
 
 flake_ref=${*: -1}
 case "$flake_ref" in
-  *nixosConfigurations.igor-vm.config.nixpkgs.hostPlatform.system)
+  *nixosConfigurations.example-host.config.nixpkgs.hostPlatform.system)
     printf '%s' "aarch64-linux"
     ;;
-  *nixosConfigurations.igor-vm.config.system.build.toplevel.drvPath)
-    printf '%s' "/nix/store/igor-vm.drv"
+  *nixosConfigurations.example-host.config.system.build.toplevel.drvPath)
+    printf '%s' "/nix/store/example-host.drv"
     ;;
   *)
     exit 1
@@ -169,7 +169,7 @@ with_mock_nix() {
   PATH="${mock_bin}:${PATH}" "$@"
 }
 
-assert_succeeds with_mock_nix validate_flake_host "$test_temp_dir" "igor-vm"
+assert_succeeds with_mock_nix validate_flake_host "$test_temp_dir" "example-host"
 mkdir -p "${test_temp_dir}/hosts/unknown-output"
 assert_fails with_mock_nix validate_flake_host "$test_temp_dir" "unknown-output"
 
@@ -181,12 +181,12 @@ disko_output=$(
     "Running mock Disko..." \
     partition_and_mount_disk \
     "$test_temp_dir" \
-    "igor-vm"
+    "example-host"
 )
 unset LUKS_PASS
 [[ -z "$disko_output" ]]
 grep -Fq -- "--yes-wipe-all-disks" "$MOCK_NIX_LOG"
-grep -Fq -- "--flake ${test_temp_dir}#igor-vm" "$MOCK_NIX_LOG"
+grep -Fq -- "--flake ${test_temp_dir}#example-host" "$MOCK_NIX_LOG"
 assert_fails grep -Fq "test LUKS passphrase" "$MOCK_NIX_LOG"
 grep -Fq "mock Disko output" "$INSTALL_LOG"
 assert_fails grep -Fq "test LUKS passphrase" "$INSTALL_LOG"

@@ -1,16 +1,10 @@
 # Igor's NixOS configuration
 
-This repository is an executable description of two computers:
+This repository is an executable description of `igor-desktop`, Igor's
+`x86_64-linux` desktop.
 
-| Host | CPU architecture | Machine |
-| --- | --- | --- |
-| `igor-desktop` | `x86_64-linux` | Physical desktop |
-| `igor-vm` | `aarch64-linux` | UTM virtual machine on Apple Silicon |
-
-Both machines use the same desktop, user account, encrypted disk layout, and
-security policy. Plymouth provides the shared BGRT boot splash and graphical
-disk-unlock prompt. A host directory contains only the facts that differ
-between the two machines.
+Plymouth provides the BGRT boot splash and graphical disk-unlock prompt. The
+`hosts/igor-desktop/` directory holds the facts specific to that machine.
 
 If Nix and NixOS are new to you, start with
 [How this repository works](docs/architecture.md). It defines the terminology,
@@ -20,13 +14,6 @@ choice.
 Human and automated contributors should also read `AGENTS.md`. It keeps Nix
 files limited to readable computer descriptions and keeps development and CI
 machinery outside them.
-
-## The two configurations
-
-| Configuration | Purpose |
-| --- | --- |
-| `igor-desktop` | Install and operate the physical desktop |
-| `igor-vm` | Install and operate the ARM virtual machine |
 
 The same configuration handles initial installation and normal operation.
 Lanzaboote allows the first boot while signing keys do not yet exist, then
@@ -38,11 +25,10 @@ enrolled in firmware.
 
 Run Nix commands inside NixOS, not on the macOS host.
 
-Rebuild an installed machine:
+Rebuild the installed machine:
 
 ```sh
 sudo nixos-rebuild switch --flake /etc/nixos#igor-desktop
-sudo nixos-rebuild switch --flake /etc/nixos#igor-vm
 ```
 
 Check repository files such as Nix, shell, and QML:
@@ -51,44 +37,40 @@ Check repository files such as Nix, shell, and QML:
 scripts/check-repository.sh
 ```
 
-Evaluate and build the machine matching the current CPU:
+Evaluate and build the machine:
 
 ```sh
 scripts/check-system.sh igor-desktop x86_64-linux
-scripts/check-system.sh igor-vm aarch64-linux
 ```
 
-Run only the matching command. The scripts fetch their tools from the
-`nixpkgs` revision already recorded in `flake.lock`; no test or development
-environment is embedded in the machine configuration.
+The scripts fetch their tools from the `nixpkgs` revision already recorded in
+`flake.lock`; no test or development environment is embedded in the machine
+configuration.
 
-Update locked dependencies from the NixOS VM:
+Update locked dependencies from a NixOS environment:
 
 ```sh
 nix flake update
 scripts/check-repository.sh
-scripts/check-system.sh igor-vm aarch64-linux
+scripts/check-system.sh igor-desktop x86_64-linux
 git diff -- flake.lock
 ```
 
-Replace the final command with the desktop variant when working on the
-desktop. CI builds the other architecture. `flake.lock` must be reviewed and
-committed with any dependency update.
+`flake.lock` must be reviewed and committed with any dependency update.
 
 ## Installation and recovery
 
 Installation erases the selected disk. Read the relevant guide before running
 the installer:
 
-- [Import the UTM VM template](docs/utm-vm.md) — VM creation only
-- [Install NixOS](docs/install.md) — physical desktop and VM
+- [Install NixOS](docs/install.md)
 - [Secure Boot and TPM setup](docs/secure-boot.md)
 - [Recovery and known limitations](docs/recovery.md)
 
-No Nix installation or partition integration is required on macOS. All VM
-installation, dependency updates, formatting, and validation happen inside the
-ARM NixOS live system or installed guest.
+No Nix installation or partition integration is required on macOS. All
+installation, dependency updates, formatting, and validation happen inside a
+NixOS live system or the installed machine.
 
-Generated `hardware-configuration.nix` files and stable disk identifiers are
-tracked because they describe a machine. Passwords, LUKS passphrases, Secure
+Generated `hardware-configuration.nix` and the stable disk identifier are
+tracked because they describe the machine. Passwords, LUKS passphrases, Secure
 Boot private keys, and TPM state are never stored here.

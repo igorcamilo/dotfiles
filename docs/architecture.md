@@ -15,7 +15,7 @@ The main data flow is:
 flowchart TD
     lock["flake.lock<br/>fixes dependency versions"] --> flake["flake.nix<br/>selects a host"]
     flake --> shared["shared configuration<br/>desktop, user, disk,<br/>and security policy"]
-    flake --> host["hosts/&lt;name&gt;<br/>hardware, disk ID,<br/>hostname, VM support"]
+    flake --> host["hosts/&lt;name&gt;<br/>hardware, disk ID,<br/>hostname"]
     shared --> merged["one NixOS configuration"]
     host --> merged
     merged --> closure["bootable system closure"]
@@ -35,7 +35,7 @@ it does not install or boot the result.
 | Input | An external dependency such as Nixpkgs, Disko, or Home Manager |
 | `flake.lock` | Exact revisions of every input |
 | Module | A Nix file that declares part of the desired system |
-| Host | One machine with a hostname and architecture |
+| Host | A machine with a hostname and architecture |
 | Nixpkgs | The package collection and NixOS module library |
 | Disko | The module and tool that partitions, encrypts, and mounts disks |
 | Home Manager | The module that configures Igor's user session |
@@ -82,17 +82,10 @@ Multiple modules may set different parts of the same section. NixOS merges
 those declarations and reports conflicts rather than silently choosing based
 on file order.
 
-## Why there are only two outputs
+## Why the hostname omits the architecture
 
-There is exactly one configuration for each machine:
-
-| Host | Machine |
-| --- | --- |
-| `igor-desktop` | Physical desktop, x86_64 |
-| `igor-vm` | UTM virtual machine, ARM64 |
-
-The hostname does not contain the architecture because it names one specific
-machine. Architecture is machine metadata in `flake.nix`.
+`igor-desktop` names a specific machine. Architecture is separate machine
+metadata recorded in `flake.nix`, not part of the hostname.
 
 The configuration does not change identity during Secure Boot setup. Instead,
 Lanzaboote handles the temporary first-boot state:
@@ -112,7 +105,7 @@ eight generations and measures PCRs 4 and 7 for the TPM policy.
 
 ## How a host is assembled
 
-`flake.nix` is the entry point. For the chosen host it combines:
+`flake.nix` is the entry point. For `igor-desktop` it combines:
 
 1. Disko's NixOS module;
 2. Home Manager's NixOS module;
@@ -123,15 +116,11 @@ eight generations and measures PCRs 4 and 7 for the TPM policy.
 7. `modules/boot/splash.nix`, the shared graphical boot; and
 8. `hosts/<name>/default.nix`, the machine-specific facts.
 
-The two `mkHost` calls record only the architecture and host module:
+The `nixosConfigurations.igor-desktop` output sets the system to
+`x86_64-linux` and the host module to `hosts/igor-desktop/default.nix`.
 
-| Host | System | Host module |
-| --- | --- | --- |
-| `igor-desktop` | `x86_64-linux` | `hosts/igor-desktop/default.nix` |
-| `igor-vm` | `aarch64-linux` | `hosts/igor-vm/default.nix` |
-
-CI evaluates those values and rejects a host whose declared hostname or CPU
-architecture does not match its matrix entry.
+CI evaluates those values and rejects a build whose declared hostname or CPU
+architecture does not match what the job expects.
 
 ## Shared and host-specific configuration
 
@@ -145,17 +134,16 @@ Shared configuration belongs at the repository root or under `modules/`:
 - `modules/boot/secure-boot.nix` contains the one shared boot policy.
 - `modules/boot/splash.nix` enables Plymouth's BGRT splash and password prompt.
 
-Only facts about one machine belong under `hosts/<name>/`:
+Only facts about the specific machine belong under `hosts/<name>/`:
 
 - hostname;
 - target architecture;
-- stable installation-disk identifier;
-- generated kernel and hardware information; and
-- VM guest support for `igor-vm`.
+- stable installation-disk identifier; and
+- generated kernel and hardware information.
 
-This boundary answers the usual placement question: if both computers should
-receive a change, it is shared; if only one computer should receive it, it is
-host-specific.
+This boundary answers the usual placement question: a setting that describes
+the computer in general is shared; a fact that describes this particular
+machine — its hardware, its disk, its hostname — is host-specific.
 
 The shared system settings are:
 
@@ -183,13 +171,6 @@ Home Manager owns:
 | KeePassXC | Starts automatically and provides the Secret Service API |
 | Ghostty | Provides the configured terminal |
 | hypridle | Locks after 5 minutes and blanks displays 30 seconds later |
-
-The VM's `virtio-ramfb-gl` display combines a firmware framebuffer for early
-boot with an accelerated VirtIO GPU for Hyprland. The VM loads that GPU in the
-initrd and tells Plymouth to ignore the still-active serial console, so the
-graphical display owns the encrypted-disk prompt while `ttyAMA0` remains a
-recovery terminal. It also adds hardware graphics, the QEMU guest agent, and
-the SPICE agent. Everything else is shared with the desktop.
 
 ## Storage and hardware
 
@@ -219,8 +200,8 @@ writes. LUKS permits discards so SSD and sparse-VM storage can reclaim unused
 blocks; the tradeoff is that the storage layer may reveal which encrypted
 blocks are unused.
 
-The two placeholder hardware files make a fresh checkout evaluable. The
-installer replaces only the selected host's placeholder with the real scan.
+The committed placeholder hardware file makes a fresh checkout evaluable. The
+installer replaces it with the real scan during installation.
 
 ## What the installer does
 
@@ -307,13 +288,12 @@ process-detection race.
 ## Validation and CI
 
 `flake.nix` contains no test derivations, lint package lists, formatter, or
-development shell. It describes the two machines and exposes the Disko command
+development shell. It describes the machine and exposes the Disko command
 used by the installer. Validation lives under `scripts/`, where it can be read
 as an ordinary sequence of commands and cannot change the resulting computer.
 
-The two architecture jobs are the same matrix job. Each calls
-`scripts/check-system.sh` with a hostname and its expected Nix system. The
-script performs the same work on native x86 and ARM runners:
+The `validate-system` job calls `scripts/check-system.sh` with the hostname
+and its expected Nix system, on a native x86_64 runner:
 
 1. evaluate the hostname and architecture;
 2. build the complete system closure.
@@ -333,9 +313,9 @@ complete Quickshell configurations: their `PanelWindow` and session-lock types
 need a real Wayland compositor and its protocols, while an offscreen Qt process
 has no window-system backend. Starting a nested compositor merely to make that
 test pass would add infrastructure without reproducing the real login or lock
-environment. The native system builds already prove that each architecture can
-produce the configured Quickshell package; actual bar, greeter, and lock-screen
-behavior remains a VM or hardware acceptance test.
+environment. The native system build already proves that the configured
+Quickshell package can be produced; actual bar, greeter, and lock-screen
+behavior remains a hardware acceptance test.
 
 Another separate job scans the complete Git history for secrets.
 
@@ -367,15 +347,13 @@ and full Git history.
 | Path | Responsibility |
 | --- | --- |
 | `AGENTS.md` | Tool-neutral navigation and agent design rules |
-| `flake.nix` | Dependencies, two system outputs, and the installer's Disko app |
+| `flake.nix` | Dependencies, the system output, and the installer's Disko app |
 | `flake.lock` | Exact dependency revisions |
 | `configuration.nix` | Shared machine-wide settings |
 | `home.nix` | Shared settings owned by Igor |
 | `hosts/` | Per-machine facts |
 | `modules/storage/` | Shared encrypted disk layout |
 | `modules/boot/` | Shared Secure Boot, measured boot, and graphical splash |
-| `modules/virtualisation/` | UTM guest additions |
-| `templates/igor-vm.utm/` | Importable blank UTM 4.7.5 virtual machine |
 | `dotfiles/hypr/` | Hyprland startup and key bindings |
 | `dotfiles/quickshell/bar/` | User bar and wallpaper |
 | `dotfiles/quickshell/greeter/` | Login screen |
@@ -386,8 +364,8 @@ and full Git history.
 | `tests/` | Non-destructive installer unit tests |
 | `scripts/check.sh` | Readable repository-level validation |
 | `scripts/check-repository.sh` | Runs repository checks with locked tools |
-| `scripts/check-system.sh` | Identical native validation for either host |
-| `.github/workflows/ci.yml` | Native systems, repository quality, and history |
+| `scripts/check-system.sh` | Native validation for the desktop host |
+| `.github/workflows/ci.yml` | Native system, repository quality, and history |
 | `lefthook.yml` | Local pre-commit secret protection |
 | `.gitignore` | Excludes local key files and Nix build links |
 | `docs/` | Procedures and this explanation |
@@ -407,12 +385,6 @@ Add a user program or dotfile:
 2. add its source under `dotfiles/` if necessary;
 3. validate and rebuild.
 
-Change only the VM:
-
-1. edit `hosts/igor-vm/default.nix` or
-   `modules/virtualisation/utm.nix`;
-2. build `igor-vm`.
-
 Update dependencies:
 
 1. run `nix flake update` inside NixOS;
@@ -423,8 +395,8 @@ Update dependencies:
 Change the disk layout:
 
 1. edit `modules/storage/luks-btrfs.nix`;
-2. understand that the change affects both hosts;
-3. test in a disposable VM before touching the desktop.
+2. review the change carefully: it is destructive-adjacent and hard to
+   rehearse safely before running the installer for real.
 
 ## Design rules
 
@@ -435,8 +407,8 @@ Change the disk layout:
 - Keep Secure Boot enrollment manual and verify signatures before changing
   firmware trust.
 - Keep destructive validation explicit even when it costs more lines.
-- Do not add fleet tooling for two personal machines.
-- Do not install Nix on macOS; use the NixOS VM as the development environment.
+- Do not add fleet tooling for a personal machine.
+- Do not install Nix on macOS; use a NixOS VM as the development environment.
 
 Upstream references:
 
