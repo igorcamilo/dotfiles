@@ -1,5 +1,3 @@
-*.hash
 *.key
-secrets/
 result
 result-*

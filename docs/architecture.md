@@ -331,8 +331,7 @@ Never tracked:
 - login passwords or hashes;
 - LUKS passphrases;
 - Secure Boot private keys under `/var/lib/sbctl`;
-- TPM enrollment state;
-- files under `secrets/`.
+- TPM enrollment state.
 
 `lefthook.yml` can provide an optional local pre-commit Gitleaks scan when
 `lefthook` and `gitleaks` are available. CI always scans both the current tree
@@ -364,7 +363,7 @@ and full Git history.
 | `scripts/check-system.sh` | Identical native validation for either host |
 | `.github/workflows/ci.yml` | Native systems, repository quality, and history |
 | `lefthook.yml` | Local pre-commit secret protection |
-| `.gitignore` | Excludes secrets, keys, and local Nix build links |
+| `.gitignore` | Excludes local key files and Nix build links |
 | `docs/` | Procedures and this explanation |
 
 ## Common change recipes
