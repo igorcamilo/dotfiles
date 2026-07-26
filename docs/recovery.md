@@ -2,10 +2,19 @@
 
 ## Recovery paths
 
-- Use Ctrl+Alt+F3 (or another free VT) if greetd or Quickshell fails.
+- In UTM, use
+  [the built-in recovery terminal](utm-vm.md#open-the-recovery-terminal) if
+  greetd, Hyprland, or Quickshell fails. It is a separate UTM window connected
+  to `ttyAMA0`, the VM's first emulated ARM serial port. Press Return, then log
+  in as `igor` with the password chosen during installation.
+- On the physical desktop, use Ctrl+Alt+F3 (or another free VT) if graphical
+  login fails.
 - Select an older NixOS generation from the boot menu after a broken rebuild.
-- Boot the architecture-matching NixOS installer, unlock and mount the target, then rebuild from
-  `/mnt/home/igor/dotfiles` if no installed generation works.
+- Press Escape while Plymouth is running to reveal boot details or a text
+  prompt; press Escape again to return to the graphical splash.
+- Boot the architecture-matching NixOS installer, unlock and mount the target,
+  then rebuild from `/mnt/home/igor/dotfiles` if no installed generation
+  works.
 - Keep the LUKS recovery passphrase and a backup of Secure Boot keys outside
   the encrypted disk.
 

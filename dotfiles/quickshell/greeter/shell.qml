@@ -134,7 +134,7 @@ ShellRoot {
 
         function onReadyToLaunch() {
             root.pendingPassword = "";
-            Greetd.launch(["Hyprland"]);
+            Greetd.launch(["start-hyprland"]);
         }
 
         function onError(errorMessage) {

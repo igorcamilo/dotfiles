@@ -111,7 +111,27 @@
 		<true/>
 	</dict>
 	<key>Serial</key>
-	<array/>
+	<array>
+		<dict>
+			<key>Mode</key>
+			<string>Terminal</string>
+			<key>Target</key>
+			<string>Auto</string>
+			<key>Terminal</key>
+			<dict>
+				<key>BackgroundColor</key>
+				<string>#000000</string>
+				<key>CursorBlink</key>
+				<true/>
+				<key>Font</key>
+				<string>Menlo</string>
+				<key>FontSize</key>
+				<integer>12</integer>
+				<key>ForegroundColor</key>
+				<string>#ffffff</string>
+			</dict>
+		</dict>
+	</array>
 	<key>Sharing</key>
 	<dict>
 		<key>ClipboardSharing</key>

@@ -13,7 +13,10 @@ Confirm UEFI, the current boot loader, TPM availability, and Secure Boot state:
 
 ```sh
 bootctl status
+sudo /run/current-system/systemd/lib/systemd/systemd-pcrlock is-supported
 ```
+
+The second command must print `yes`. Stop if it reports anything else.
 
 The first boot starts a one-shot service that creates root-only keys. Verify
 that it succeeded:
@@ -70,6 +73,21 @@ Both must report Secure Boot enabled before TPM enrollment.
 
 ## Enroll the LUKS volume
 
+The policy generated during installation reflected the live ISO and must never
+be used for enrollment. The installed system regenerates it during boot and
+whenever Lanzaboote installs a new generation. Inspect the current boot's
+policy-generation log:
+
+```sh
+sudo journalctl \
+  --boot \
+  --unit=systemd-pcrlock-make-policy.service \
+  --no-pager
+```
+
+Stop if the log says that PCR 4 or PCR 7 was dropped, that no PCRs were kept,
+or that the policy-generation service failed.
+
 First prove that the independent recovery passphrase works:
 
 ```sh
@@ -77,11 +95,26 @@ sudo cryptsetup open --test-passphrase \
   /dev/disk/by-partlabel/disk-main-luks
 ```
 
-Confirm Lanzaboote generated a non-empty measured-boot policy:
+Confirm that the generated policy actually protects both configured PCRs. A
+non-empty file alone is insufficient: `systemd-pcrlock` can write a policy
+containing no PCR protection.
 
 ```sh
-sudo test -s /var/lib/systemd/pcrlock.json
+sudo nix eval --impure --raw --expr '
+  let
+    policy = builtins.fromJSON (
+      builtins.readFile "/var/lib/systemd/pcrlock.json"
+    );
+    protectedPcrs = builtins.map (entry: entry.pcr) policy.pcrValues;
+  in
+  if builtins.all (pcr: builtins.elem pcr protectedPcrs) [ 4 7 ] then
+    "PCR policy protects PCRs 4 and 7.\n"
+  else
+    builtins.throw "PCR policy does not protect both PCR 4 and PCR 7"
+'
 ```
+
+Proceed only when this prints `PCR policy protects PCRs 4 and 7.`
 
 Take another VM snapshot or physical-system backup before changing the LUKS
 slots.

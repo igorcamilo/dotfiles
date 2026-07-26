@@ -320,6 +320,10 @@ run_install() {
   write_disk_device "$requested_device" "${staged_repo}/${HOST_RELATIVE_PATH}/disk-device"
 
   echo
+  echo "The private installation checkout now contains the selected disk identity."
+  echo "Nix may call this Git tree dirty; that is expected and does not refer to"
+  echo "the clean checkout from which you started the installer."
+  echo
   echo "Partitioning and mounting ${requested_device} with Disko."
   nix run "${staged_repo}#disko" -- \
     --mode destroy,format,mount \
@@ -345,6 +349,12 @@ run_install() {
     || fail "${TARGET_ROOT}/etc/nixos already exists"
   ln -s "/home/${USERNAME}/dotfiles" "${TARGET_ROOT}/etc/nixos"
 
+  echo
+  echo "Installing NixOS."
+  echo "Measured-boot messages at this stage describe the live ISO's boot, not the"
+  echo "installed system. Its first boot regenerates that policy; do not enroll"
+  echo "TPM unlocking until docs/secure-boot.md verifies PCRs 4 and 7."
+
   nixos-install \
     --root "$TARGET_ROOT" \
     --flake "${REPO_DEST}#${TARGET_HOST}" \
@@ -359,6 +369,8 @@ run_install() {
 
   echo
   echo "Install finished using the ${TARGET_HOST} configuration."
+  echo "The live ISO checkout remains unchanged. After reboot, ~/dotfiles is the"
+  echo "installed checkout and contains the generated host data."
   echo "After reboot, review and commit the generated host data:"
   echo "  git -C ~/dotfiles diff -- hosts/${TARGET_HOST}"
   echo "  git -C ~/dotfiles add hosts/${TARGET_HOST}"
