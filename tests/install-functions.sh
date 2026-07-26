@@ -177,9 +177,9 @@ unset LUKS_PASS
 [[ -z "$disko_output" ]]
 grep -Fq -- "--yes-wipe-all-disks" "$MOCK_NIX_LOG"
 grep -Fq -- "--flake ${test_temp_dir}#igor-vm" "$MOCK_NIX_LOG"
-! grep -Fq "test LUKS passphrase" "$MOCK_NIX_LOG"
+assert_fails grep -Fq "test LUKS passphrase" "$MOCK_NIX_LOG"
 grep -Fq "mock Disko output" "$INSTALL_LOG"
-! grep -Fq "test LUKS passphrase" "$INSTALL_LOG"
+assert_fails grep -Fq "test LUKS passphrase" "$INSTALL_LOG"
 unset MOCK_NIX_LOG
 
 mkdir -p "${test_temp_dir}/lfs-checkout"
