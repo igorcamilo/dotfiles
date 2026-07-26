@@ -83,6 +83,21 @@ selected host's disk identity and hardware scan, installs `<host>`, and sends
 the login password directly to `chpasswd`. Disko/cryptsetup separately requests
 the LUKS recovery passphrase.
 
+Writing those two host facts deliberately makes the private installation copy
+different from its Git commit. Nix may therefore warn that its Git tree is
+dirty. This warning refers to the private copy being installed, not to the
+clean source checkout that the installer already verified. The original
+checkout in the live ISO remains unchanged.
+
+Lanzaboote also attempts to predict measured-boot state while `nixos-install`
+is still running. At that point the VM is booted from the live ISO, so messages
+about unrecognized boot components, an empty PCR protection mask, or a missing
+machine ID describe a provisional policy. They do not mean that installation
+failed when `install.sh` subsequently prints its success message. Never enroll
+TPM unlocking with this installation-time policy: the installed system
+regenerates it after boot, and [secure-boot.md](secure-boot.md) verifies its
+actual PCR contents before enrollment.
+
 The installed system includes `git-lfs` because the copied repository
 continues to track the wallpaper through LFS. This is unrelated to the Git
 already present on the live ISO.
@@ -116,6 +131,7 @@ Review and commit only the generated host data:
 
 ```sh
 cd ~/dotfiles
+git status --short -- hosts/igor-vm
 git diff -- hosts/igor-vm
 git add hosts/igor-vm
 git commit -m "Record igor-vm hardware"
