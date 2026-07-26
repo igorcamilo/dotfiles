@@ -31,16 +31,20 @@
     # The installer sets the initial password imperatively. Passwords remain
     # mutable, so later changes with passwd survive rebuilds.
   };
-  programs.zsh.enable = true;
 
   zramSwap.enable = true;
 
   # Desktop: Hyprland, with Quickshell as the shell layer (bar, wallpaper,
   # lock screen). Wallpaper is drawn by Quickshell itself (a background
   # layer-shell surface), so no separate wallpaper daemon is installed.
-  programs.hyprland.enable = true;
+  programs = {
+    hyprland.enable = true;
+    dconf.enable = true;
+    # Registers zsh as a valid login shell; users.users.igor.shell above
+    # is what makes it igor's actual default.
+    zsh.enable = true;
+  };
   qt.enable = true;
-  programs.dconf.enable = true;
 
   # greetd runs a throwaway Hyprland+Quickshell "greeter" session (see
   # dotfiles/hypr/greeter.conf and dotfiles/quickshell/greeter) that

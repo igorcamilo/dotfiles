@@ -28,36 +28,38 @@
     };
   };
 
-  # Secret Service integration: lets applications, including
-  # NetworkManager, store and retrieve secrets through KeePassXC instead
-  # of gnome-keyring or KWallet. See README.md.
-  programs.keepassxc = {
-    enable = true;
-    autostart = true;
-    settings = {
-      FdoSecrets.Enabled = true;
+  programs = {
+    # Secret Service integration: lets applications, including
+    # NetworkManager, store and retrieve secrets through KeePassXC instead
+    # of gnome-keyring or KWallet. See README.md.
+    keepassxc = {
+      enable = true;
+      autostart = true;
+      settings = {
+        FdoSecrets.Enabled = true;
+      };
     };
-  };
 
-  programs.ghostty = {
-    enable = true;
-    settings = {
-      theme = "catppuccin-mocha";
-      font-family = "JetBrainsMono Nerd Font";
-      window-padding-x = 10;
-      window-padding-y = 10;
-      window-decoration = false;
+    ghostty = {
+      enable = true;
+      settings = {
+        theme = "catppuccin-mocha";
+        font-family = "JetBrainsMono Nerd Font";
+        window-padding-x = 10;
+        window-padding-y = 10;
+        window-decoration = false;
+      };
     };
-  };
 
-  # zsh is home-manager-managed (not just enabled in configuration.nix) so
-  # that Starship's shell hook below gets woven into ~/.zshrc automatically.
-  programs.zsh.enable = true;
-  programs.starship = {
-    enable = true;
-    settings = {
-      add_newline = false;
-      format = "$username$hostname$directory$git_branch$character";
+    # home-manager-managed (not just enabled in configuration.nix) so that
+    # Starship's shell hook below gets woven into ~/.zshrc automatically.
+    zsh.enable = true;
+    starship = {
+      enable = true;
+      settings = {
+        add_newline = false;
+        format = "$username$hostname$directory$git_branch$character";
+      };
     };
   };
 
