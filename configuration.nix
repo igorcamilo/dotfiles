@@ -76,7 +76,19 @@
     # Needs the 32-bit graphics support enabled above.
     steam.enable = true;
   };
-  qt.enable = true;
+  # qt5ct/qt6ct (platformTheme) is the standard way to theme Qt apps outside
+  # a running KDE Plasma session; Kvantum (style) is the engine that actually
+  # renders the theme qt5ct/qt6ct picks. home.nix carries the GTK3/4 side.
+  qt = {
+    enable = true;
+    platformTheme = "qt5ct";
+    style = "kvantum";
+  };
+
+  # xdg-desktop-portal-hyprland (added automatically by programs.hyprland
+  # above) only covers Screenshot/ScreenCast. Dolphin's own portal fills in
+  # FileChooser and other KDE-flavored requests.
+  xdg.portal.extraPortals = [ pkgs.kdePackages.xdg-desktop-portal-kde ];
 
   # GUI privilege prompts (mounting a drive, some NetworkManager actions)
   # need an authentication agent; home.nix installs Hyprland's own

@@ -11,29 +11,38 @@
     };
   };
 
+  systemd.user.services.quickshell-launcher = {
+    Unit.Description = "Quickshell app launcher";
+    Service = {
+      Type = "simple";
+      ExecStart = "${pkgs.quickshell}/bin/quickshell -c launcher";
+    };
+  };
+
   home = {
     username = "igor";
     homeDirectory = "/home/igor";
     stateVersion = "26.05";
 
-    # hyprpolkitagent: GUI polkit agent, started from hyprland.conf. wofi:
-    # app launcher bound in hyprland.conf. playerctl and wireplumber
-    # (wpctl): back the media-key binds in hyprland.conf.
+    # hyprpolkitagent: GUI polkit agent, started from hyprland.conf. dolphin:
+    # file manager bound in hyprland.conf. playerctl and wireplumber (wpctl):
+    # back the media-key binds in hyprland.conf.
     packages = [
       pkgs.hyprpolkitagent
-      pkgs.wofi
+      pkgs.kdePackages.dolphin
       pkgs.playerctl
       pkgs.wireplumber
     ];
 
-    # Hyprland session and Quickshell shells (bar + lock screen). The
-    # greeter has its own copy of Quickshell's config, published via
+    # Hyprland session and Quickshell shells (bar, lock screen, launcher).
+    # The greeter has its own copy of Quickshell's config, published via
     # environment.etc in configuration.nix instead of home-manager, since
     # it runs as a separate system user with no home directory here.
     file = {
       ".config/hypr/hyprland.conf".source = ./dotfiles/hypr/hyprland.conf;
       ".config/quickshell/shell.qml".source = ./dotfiles/quickshell/bar/shell.qml;
       ".config/quickshell/lockscreen".source = ./dotfiles/quickshell/lockscreen;
+      ".config/quickshell/launcher".source = ./dotfiles/quickshell/launcher;
       ".config/quickshell/shared".source = ./dotfiles/quickshell/shared;
     };
   };
@@ -71,6 +80,23 @@
         format = "$username$hostname$directory$git_branch$character";
       };
     };
+  };
+
+  # GTK4/libadwaita apps ignore a full theme override (see the gtk.gtk4.theme
+  # warning in home-manager's own module), so only GTK3 gets one: adw-gtk3
+  # mimics libadwaita's look, keeping GTK3 and GTK4 apps consistent without
+  # fighting GTK4 for it. colorScheme and iconTheme apply to both versions.
+  gtk = {
+    enable = true;
+    theme = {
+      name = "adw-gtk3-dark";
+      package = pkgs.adw-gtk3;
+    };
+    iconTheme = {
+      name = "Papirus-Dark";
+      package = pkgs.papirus-icon-theme;
+    };
+    colorScheme = "dark";
   };
 
   xdg.autostart.enable = true;
