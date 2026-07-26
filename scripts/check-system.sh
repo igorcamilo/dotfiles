@@ -12,7 +12,7 @@ configuration=".#nixosConfigurations.${host}.config"
 cd "$repo_root"
 
 case "$host" in
-  igor-desktop | igor-vm) ;;
+  igor-desktop) ;;
   *)
     printf 'Unknown host: %s\n' "$host" >&2
     exit 1
@@ -20,7 +20,7 @@ case "$host" in
 esac
 
 case "$expected_system" in
-  x86_64-linux | aarch64-linux) ;;
+  x86_64-linux) ;;
   *)
     printf 'Unsupported Nix system: %s\n' "$expected_system" >&2
     exit 1

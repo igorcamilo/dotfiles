@@ -1,5 +1,5 @@
 {
-  description = "NixOS configuration for Igor's desktop and ARM virtual machine";
+  description = "NixOS configuration for Igor's desktop";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -44,30 +44,17 @@
           };
         }
       ];
-
-      mkHost =
-        system: hostModule:
-        nixpkgs.lib.nixosSystem {
-          inherit system;
-          modules = sharedModules ++ [ hostModule ];
-        };
     in
     {
-      nixosConfigurations = {
-        igor-desktop = mkHost "x86_64-linux" ./hosts/igor-desktop;
-        igor-vm = mkHost "aarch64-linux" ./hosts/igor-vm;
+      nixosConfigurations.igor-desktop = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        modules = sharedModules ++ [ ./hosts/igor-desktop ];
       };
 
       # install.sh uses the Disko app pinned by flake.lock.
-      apps = {
-        x86_64-linux.disko = {
-          type = "app";
-          program = "${disko.packages.x86_64-linux.default}/bin/disko";
-        };
-        aarch64-linux.disko = {
-          type = "app";
-          program = "${disko.packages.aarch64-linux.default}/bin/disko";
-        };
+      apps.x86_64-linux.disko = {
+        type = "app";
+        program = "${disko.packages.x86_64-linux.default}/bin/disko";
       };
     };
 }

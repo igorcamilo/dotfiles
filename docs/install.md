@@ -1,18 +1,12 @@
 # Install NixOS
 
-This procedure erases the selected physical or virtual disk. Keep backups and
-the LUKS recovery passphrase somewhere independent of the target.
+This procedure erases the selected disk. Keep backups and the LUKS recovery
+passphrase somewhere independent of the target.
 
 ## Boot the installation environment
 
-Prepare and boot the installer matching the target:
-
-- For `igor-desktop`, boot an x86_64 NixOS ISO on the physical desktop.
-- For `igor-vm`, first [import and prepare the UTM
-  template](utm-vm.md), then start it from the attached ARM64/AArch64 NixOS
-  ISO.
-
-All following commands run inside that NixOS environment, never on macOS.
+Boot an x86_64 NixOS ISO on the physical desktop. All following commands run
+inside that NixOS environment, never on macOS.
 
 ## Prepare the exact source
 
@@ -45,26 +39,19 @@ The installer lists every whole disk available under `/dev/disk/by-id`, along
 with its device path, model, serial number, size, transport, type, and mount
 status. It then asks for the full identifier to erase.
 
-For `igor-vm`, UTM 4.7.2 or newer automatically gives the VirtIO system disk a
-fixed serial. Its entry should resemble `/dev/disk/by-id/virtio-...`. Stop if
-that entry is absent: shut down the VM, update UTM if necessary, and confirm
-that the non-removable system disk uses the VirtIO interface. Never substitute
-the topology-dependent `/dev/vda` name.
-
 ## Install
 
-Run from a clean checkout, selecting exactly one host:
+Run from a clean checkout:
 
 ```sh
 sudo ./install.sh --host igor-desktop
-sudo ./install.sh --host igor-vm
 ```
 
 Use `--dry-run` to exercise validation and exact disk confirmation without
 changing the disk:
 
 ```sh
-sudo ./install.sh --host igor-vm --dry-run
+sudo ./install.sh --host igor-desktop --dry-run
 ```
 
 Before destructive confirmation, the installer:
@@ -114,8 +101,8 @@ clean source checkout that the installer already verified. The original
 checkout in the live ISO remains unchanged.
 
 The detailed log can contain Lanzaboote's attempt to predict measured-boot
-state while `nixos-install` is still running. At that point the VM is booted
-from the live ISO, so messages about unrecognized boot components, an empty
+state while `nixos-install` is still running. At that point the machine is
+booted from the live ISO, so messages about unrecognized boot components, an empty
 PCR protection mask, or a missing machine ID describe a provisional policy.
 They do not mean that installation failed when `install.sh` subsequently
 prints its success banner. Never enroll TPM unlocking with this
@@ -129,37 +116,18 @@ already present on the live ISO.
 
 ## Boot the installed system
 
-Only after the installer prints its success banner:
-
-- On `igor-desktop`, shut down, remove the installation medium, and boot from
-  the installed disk.
-- On `igor-vm`, shut down the guest, use UTM's removable-drive control to eject
-  the NixOS ISO, and start the VM from its VirtIO disk.
+Only after the installer prints its success banner: shut down, remove the
+installation medium, and boot from the installed disk.
 
 Plymouth's BGRT theme appears after the boot menu and asks for the LUKS
 passphrase on the graphical display. Typed characters are intentionally not
 shown; enter the passphrase and press Return. Press Escape to switch between
-the splash and detailed boot messages.
+the splash and detailed boot messages. BGRT reuses the firmware's boot logo
+only when the firmware provides one; a graphical spinner and password prompt
+without a vendor logo still means Plymouth is working.
 
-The exact background can differ between the physical desktop and UTM because
-BGRT reuses a firmware logo only when that firmware provides one. The
-graphical password prompt does not depend on the two machines showing the same
-logo.
-
-The UTM template also exposes a built-in terminal connected to `ttyAMA0`,
-Linux's name for the VM's first ARM serial port. If graphical login fails,
-follow
-[Open the recovery terminal](utm-vm.md#open-the-recovery-terminal) and log in
-there to inspect or rebuild the system; no boot-menu edit is required.
-
-If the VM fails to reach the graphical desktop, stop it and edit its display:
-
-1. replace `virtio-ramfb-gl` with `virtio-ramfb`;
-2. disable accelerated rendering; and
-3. boot the same `igor-vm` configuration again.
-
-This fallback changes only virtual graphics performance, not the guest's
-architecture or NixOS configuration.
+If graphical login fails, see [recovery.md](recovery.md) for how to reach a
+terminal and inspect or rebuild the system.
 
 ## First boot
 
@@ -172,18 +140,13 @@ Review and commit only the generated host data:
 
 ```sh
 cd ~/dotfiles
-git status --short -- hosts/igor-vm
-git diff -- hosts/igor-vm
-git add hosts/igor-vm
-git commit -m "Record igor-vm hardware"
+git status --short -- hosts/igor-desktop
+git diff -- hosts/igor-desktop
+git add hosts/igor-desktop
+git commit -m "Record igor-desktop hardware"
 ```
 
-Replace `igor-vm` with `igor-desktop` for the physical machine. Do not enable
-Secure Boot or TPM unlock yet.
-
-For `igor-vm`, shut down after this successful first boot and take a
-post-installation UTM snapshot. The snapshot supplements, but does not replace,
-the LUKS recovery passphrase.
+Do not enable Secure Boot or TPM unlock yet.
 
 Continue with [secure-boot.md](secure-boot.md) to verify key generation,
 rebuild signed boot artifacts, and enroll them deliberately.
