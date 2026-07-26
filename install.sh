@@ -262,7 +262,7 @@ run_install() {
   echo "Partitioning and mounting ${requested_device} with Disko."
   nix run "${staged_repo}#disko" -- \
     --mode destroy,format,mount \
-    "${staged_repo}/${HOST_RELATIVE_PATH}/disko.nix"
+    --flake "$(bootstrap_flake_ref "$staged_repo" "$TARGET_HOST")"
 
   [[ ! -e "$REPO_DEST" ]] || fail "target repository already exists: ${REPO_DEST}"
   mkdir -p "$(dirname "$REPO_DEST")"

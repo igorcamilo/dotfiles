@@ -1,5 +1,5 @@
 {
-  description = "Two-host NixOS configuration with Disko, Secure Boot, and TPM2";
+  description = "NixOS configuration for Igor's desktop and ARM virtual machine";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -28,10 +28,18 @@
       lanzaboote,
       home-manager,
       ...
-    }@inputs:
+    }:
     let
       inherit (nixpkgs) lib;
 
+      systems = [
+        "x86_64-linux"
+        "aarch64-linux"
+      ];
+      forEachSystem = lib.genAttrs systems;
+      pkgsFor = system: nixpkgs.legacyPackages.${system};
+
+      # The only machine registry in the repository.
       hosts = {
         igor-desktop = {
           system = "x86_64-linux";
@@ -43,14 +51,7 @@
         };
       };
 
-      supportedSystems = [
-        "x86_64-linux"
-        "aarch64-linux"
-      ];
-      forAllSystems = lib.genAttrs supportedSystems;
-      pkgsFor = system: nixpkgs.legacyPackages.${system};
-
-      commonModules = [
+      sharedModules = [
         disko.nixosModules.disko
         home-manager.nixosModules.home-manager
         ./configuration.nix
@@ -64,16 +65,14 @@
       ];
 
       mkHost =
-        name: host: extraModules:
-        nixpkgs.lib.nixosSystem {
-          inherit (host) system;
-          specialArgs = {
-            inherit inputs;
-            targetHost = name;
-            targetSystem = host.system;
-          };
+        name: bootModules:
+        let
+          host = hosts.${name};
+        in
+        lib.nixosSystem {
+          system = host.system;
           modules =
-            commonModules
+            sharedModules
             ++ [
               host.module
               (
@@ -93,170 +92,115 @@
                 }
               )
             ]
-            ++ extraModules;
+            ++ bootModules;
         };
 
-      nixosConfigurations = lib.concatMapAttrs (name: host: {
-        "${name}" = mkHost name host [
+      # These four names are the public installation and rebuild interface.
+      nixosConfigurations = {
+        igor-desktop = mkHost "igor-desktop" [
           lanzaboote.nixosModules.lanzaboote
           ./modules/boot/secure-boot.nix
         ];
-        "${name}-bootstrap" = mkHost name host [
+        igor-desktop-bootstrap = mkHost "igor-desktop" [
           ./modules/boot/bootstrap.nix
         ];
-      }) hosts;
+        igor-vm = mkHost "igor-vm" [
+          lanzaboote.nixosModules.lanzaboote
+          ./modules/boot/secure-boot.nix
+        ];
+        igor-vm-bootstrap = mkHost "igor-vm" [
+          ./modules/boot/bootstrap.nix
+        ];
+      };
 
-      mkCheck =
-        system: name:
+      mkHostChecks =
+        name:
+        let
+          host = hosts.${name};
+          pkgs = pkgsFor host.system;
+          production = nixosConfigurations.${name}.config;
+          bootstrap = nixosConfigurations."${name}-bootstrap".config;
+        in
         {
-          nativeBuildInputs,
-          script,
-        }:
-        (pkgsFor system).runCommand name { inherit nativeBuildInputs; } ''
-          cp -R ${self} source
-          chmod -R u+w source
-          cd source
-          ${script}
-          touch "$out"
-        '';
-
-      nativeHostChecks =
-        system:
-        builtins.listToAttrs (
-          lib.concatMap (
-            name:
-            let
-              production = nixosConfigurations.${name}.config;
-              bootstrap = nixosConfigurations."${name}-bootstrap".config;
-            in
-            [
-              {
-                name = "${name}-production-system";
-                value = production.system.build.toplevel;
-              }
-              {
-                name = "${name}-bootstrap-system";
-                value = bootstrap.system.build.toplevel;
-              }
-              {
-                name = "${name}-boot-policy";
-                value =
-                  assert production.networking.hostName == name;
-                  assert production.nixpkgs.hostPlatform.system == system;
-                  assert production.boot.lanzaboote.enable;
-                  assert !production.boot.loader.systemd-boot.enable;
-                  assert production.boot.lanzaboote.configurationLimit == 8;
-                  assert
-                    production.boot.lanzaboote.measuredBoot.pcrs == [
-                      4
-                      7
-                    ];
-                  assert bootstrap.networking.hostName == name;
-                  assert bootstrap.nixpkgs.hostPlatform.system == system;
-                  assert bootstrap.boot.loader.systemd-boot.enable;
-                  (pkgsFor system).runCommand "${name}-boot-policy" { } ''
-                    touch "$out"
-                  '';
-              }
-            ]
-          ) (builtins.filter (name: hosts.${name}.system == system) (builtins.attrNames hosts))
-        );
-
-      repositoryChecks =
-        system:
-        lib.optionalAttrs (system == "x86_64-linux") {
-          nix-format = mkCheck system "nix-format" {
-            nativeBuildInputs = [ (pkgsFor system).nixfmt ];
-            script = ''
-              find . -name '*.nix' -print0 | xargs -0 nixfmt --check
+          "${name}-production-system" = production.system.build.toplevel;
+          "${name}-bootstrap-system" = bootstrap.system.build.toplevel;
+          "${name}-boot-policy" =
+            assert production.networking.hostName == name;
+            assert production.nixpkgs.hostPlatform.system == host.system;
+            assert production.boot.lanzaboote.enable;
+            assert !production.boot.loader.systemd-boot.enable;
+            assert production.boot.lanzaboote.configurationLimit == 8;
+            assert
+              production.boot.lanzaboote.measuredBoot.pcrs == [
+                4
+                7
+              ];
+            assert bootstrap.networking.hostName == name;
+            assert bootstrap.nixpkgs.hostPlatform.system == host.system;
+            assert bootstrap.boot.loader.systemd-boot.enable;
+            pkgs.runCommand "${name}-boot-policy" { } ''
+              touch "$out"
             '';
-          };
-
-          deadnix = mkCheck system "deadnix" {
-            nativeBuildInputs = [ (pkgsFor system).deadnix ];
-            script = ''
-              deadnix --fail .
-            '';
-          };
-
-          statix = mkCheck system "statix" {
-            nativeBuildInputs = [ (pkgsFor system).statix ];
-            script = ''
-              statix check .
-            '';
-          };
-
-          shellcheck = mkCheck system "shellcheck" {
-            nativeBuildInputs = [ (pkgsFor system).shellcheck ];
-            script = ''
-              shellcheck -x install.sh tests/install-functions.sh
-            '';
-          };
-
-          bash-syntax = mkCheck system "bash-syntax" {
-            nativeBuildInputs = [ (pkgsFor system).bash ];
-            script = ''
-              ${(pkgsFor system).bash}/bin/bash -n install.sh tests/install-functions.sh
-            '';
-          };
-
-          installer-tests = mkCheck system "installer-tests" {
-            nativeBuildInputs = [ (pkgsFor system).bash ];
-            script = ''
-              ${(pkgsFor system).bash}/bin/bash tests/install-functions.sh
-            '';
-          };
-
-          secrets = mkCheck system "secrets" {
-            nativeBuildInputs = [ (pkgsFor system).gitleaks ];
-            script = ''
-              gitleaks detect --source . --no-git --redact --verbose
-            '';
-          };
-
-          qml = mkCheck system "qml" {
-            nativeBuildInputs = [
-              (pkgsFor system).qt6.qtdeclarative
-              (pkgsFor system).quickshell
-            ];
-            script = ''
-              export QML2_IMPORT_PATH="${(pkgsFor system).quickshell}/lib/qt-6/qml"
-              find dotfiles/quickshell -name '*.qml' -print0 \
-                | xargs -0 -n1 qmllint
-            '';
-          };
         };
+
+      checkPackages =
+        pkgs: [
+          pkgs.bash
+          pkgs.deadnix
+          pkgs.gitleaks
+          pkgs.nixfmt
+          pkgs.qt6.qtdeclarative
+          pkgs.quickshell
+          pkgs.shellcheck
+          pkgs.statix
+        ];
+
+      repositoryCheck =
+        let
+          pkgs = pkgsFor "x86_64-linux";
+        in
+        pkgs.runCommand "repository-quality"
+          {
+            nativeBuildInputs = checkPackages pkgs;
+            QML2_IMPORT_PATH = "${pkgs.quickshell}/lib/qt-6/qml";
+          }
+          ''
+            cp -R ${self} source
+            chmod -R u+w source
+            cd source
+            ${pkgs.bash}/bin/bash scripts/check.sh
+            touch "$out"
+          '';
     in
     {
       inherit nixosConfigurations;
 
-      apps = forAllSystems (system: {
+      checks = {
+        x86_64-linux = mkHostChecks "igor-desktop" // {
+          repository-quality = repositoryCheck;
+        };
+        aarch64-linux = mkHostChecks "igor-vm";
+      };
+
+      # install.sh uses the Disko app pinned by flake.lock.
+      apps = forEachSystem (system: {
         disko = {
           type = "app";
           program = "${disko.packages.${system}.default}/bin/disko";
         };
       });
 
-      formatter = forAllSystems (system: (pkgsFor system).nixfmt);
+      formatter = forEachSystem (system: (pkgsFor system).nixfmt);
 
-      checks = forAllSystems (system: (nativeHostChecks system) // (repositoryChecks system));
-
-      devShells = forAllSystems (
+      devShells = forEachSystem (
         system:
         let
           pkgs = pkgsFor system;
         in
         {
           default = pkgs.mkShell {
-            packages = [
-              pkgs.deadnix
-              pkgs.gitleaks
-              pkgs.lefthook
-              pkgs.nixfmt
-              pkgs.shellcheck
-              pkgs.statix
-            ];
-            shellHook = "lefthook install";
+            packages = checkPackages pkgs ++ [ pkgs.lefthook ];
+            QML2_IMPORT_PATH = "${pkgs.quickshell}/lib/qt-6/qml";
           };
         }
       );
