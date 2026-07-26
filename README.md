@@ -46,7 +46,7 @@ Check repository files such as Nix, shell, and QML:
 scripts/check-repository.sh
 ```
 
-Evaluate, build, and smoke-test the machine matching the current CPU:
+Evaluate and build the machine matching the current CPU:
 
 ```sh
 scripts/check-system.sh igor-desktop x86_64-linux

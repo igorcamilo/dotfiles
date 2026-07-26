@@ -288,9 +288,7 @@ The two architecture jobs are the same matrix job. Each calls
 script performs the same work on native x86 and ARM runners:
 
 1. evaluate the hostname and architecture;
-2. build the complete system closure; and
-3. ask the architecture's real Quickshell binary to load the bar, greeter, and
-   lock-screen configurations.
+2. build the complete system closure.
 
 Architecture-neutral work runs once in a separate `repository-quality` job.
 `scripts/check-repository.sh` obtains its tools from the locked `nixpkgs` input
@@ -302,11 +300,16 @@ failure does not hide the others.
 Here, `nix shell` only makes those tools available for one command. It does not
 install them permanently or add them to either computer's configuration.
 
-The Quickshell load test complements static QML linting. It uses an offscreen
-software renderer and requires Quickshell to report `Configuration Loaded`.
-It does not exercise Wayland protocols, PAM, greetd, or user interaction; those
-remain VM acceptance tests. Another separate job scans the complete Git history
-for secrets.
+QML is checked statically with `qmllint`. CI deliberately does not launch the
+complete Quickshell configurations: their `PanelWindow` and session-lock types
+need a real Wayland compositor and its protocols, while an offscreen Qt process
+has no window-system backend. Starting a nested compositor merely to make that
+test pass would add infrastructure without reproducing the real login or lock
+environment. The native system builds already prove that each architecture can
+produce the configured Quickshell package; actual bar, greeter, and lock-screen
+behavior remains a VM or hardware acceptance test.
+
+Another separate job scans the complete Git history for secrets.
 
 CI cannot test firmware menus, Secure Boot enrollment, TPM behavior, GPU
 initialization, or recovery passphrases. Those require the acceptance steps in
@@ -336,6 +339,7 @@ and full Git history.
 
 | Path | Responsibility |
 | --- | --- |
+| `AGENTS.md` and scoped copies | Navigation and design rules for coding agents |
 | `flake.nix` | Dependencies, two system outputs, and the installer's Disko app |
 | `flake.lock` | Exact dependency revisions |
 | `configuration.nix` | Shared machine-wide settings |
@@ -354,7 +358,6 @@ and full Git history.
 | `scripts/check.sh` | Readable repository-level validation |
 | `scripts/check-repository.sh` | Runs repository checks with locked tools |
 | `scripts/check-system.sh` | Identical native validation for either host |
-| `scripts/check-quickshell.sh` | Native Quickshell configuration load test |
 | `.github/workflows/ci.yml` | Native systems, repository quality, and history |
 | `lefthook.yml` | Local pre-commit secret protection |
 | `.gitignore` | Excludes secrets, keys, and local Nix build links |

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Evaluate, build, and smoke-test one host on its native CPU architecture.
+# Evaluate and build one host on its native CPU architecture.
 
 set -euo pipefail
 
@@ -49,13 +49,3 @@ nix build \
   --no-link \
   --print-build-logs \
   ".#nixosConfigurations.${host}.config.system.build.toplevel"
-
-nix shell \
-  --no-update-lock-file \
-  --inputs-from "$repo_root" \
-  nixpkgs#bash \
-  nixpkgs#coreutils \
-  nixpkgs#gnugrep \
-  nixpkgs#qt6.qtdeclarative \
-  nixpkgs#quickshell \
-  --command bash scripts/check-quickshell.sh dotfiles/quickshell

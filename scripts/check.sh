@@ -71,8 +71,7 @@ check_shell() {
     tests/install-functions.sh \
     scripts/check.sh \
     scripts/check-repository.sh \
-    scripts/check-system.sh \
-    scripts/check-quickshell.sh
+    scripts/check-system.sh
 }
 
 check_bash_syntax() {
@@ -81,8 +80,7 @@ check_bash_syntax() {
     tests/install-functions.sh \
     scripts/check.sh \
     scripts/check-repository.sh \
-    scripts/check-system.sh \
-    scripts/check-quickshell.sh
+    scripts/check-system.sh
 }
 
 check_installer() {
