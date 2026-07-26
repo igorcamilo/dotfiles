@@ -1,4 +1,5 @@
 import QtQuick
+import QtQml
 import "../shared"
 
 Item {
@@ -40,13 +41,14 @@ Item {
         y: parent.height * 0.15
         color: "#c0caf5"
         font.pixelSize: 48
-        text: Qt.formatDateTime(new Date(), "HH:mm")
+        // The system's LC_TIME chooses the 12/24-hour clock.
+        text: new Date().toLocaleTimeString(Qt.locale(), Locale.ShortFormat)
 
         Timer {
             interval: 1000
             running: true
             repeat: true
-            onTriggered: clockText.text = Qt.formatDateTime(new Date(), "HH:mm")
+            onTriggered: clockText.text = new Date().toLocaleTimeString(Qt.locale(), Locale.ShortFormat)
         }
     }
 

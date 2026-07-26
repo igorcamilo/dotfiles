@@ -72,28 +72,26 @@
           host = hosts.${name};
         in
         lib.nixosSystem {
-          system = host.system;
-          modules =
-            sharedModules
-            ++ [
-              host.module
-              (
-                { config, ... }:
-                {
-                  nixpkgs.hostPlatform = lib.mkDefault host.system;
-                  assertions = [
-                    {
-                      assertion = config.networking.hostName == name;
-                      message = "Host ${name} must set networking.hostName to ${name}.";
-                    }
-                    {
-                      assertion = config.nixpkgs.hostPlatform.system == host.system;
-                      message = "Host ${name} must use ${host.system}.";
-                    }
-                  ];
-                }
-              )
-            ];
+          inherit (host) system;
+          modules = sharedModules ++ [
+            host.module
+            (
+              { config, ... }:
+              {
+                nixpkgs.hostPlatform = lib.mkDefault host.system;
+                assertions = [
+                  {
+                    assertion = config.networking.hostName == name;
+                    message = "Host ${name} must set networking.hostName to ${name}.";
+                  }
+                  {
+                    assertion = config.nixpkgs.hostPlatform.system == host.system;
+                    message = "Host ${name} must use ${host.system}.";
+                  }
+                ];
+              }
+            )
+          ];
         };
 
       # These two names are the complete installation and rebuild interface.

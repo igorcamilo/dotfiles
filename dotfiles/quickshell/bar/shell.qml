@@ -1,4 +1,5 @@
 import QtQuick
+import QtQml
 import Quickshell
 import Quickshell.Wayland
 
@@ -54,13 +55,14 @@ ShellRoot {
                 anchors.centerIn: parent
                 color: "#c0caf5"
                 font.pixelSize: 14
-                text: Qt.formatDateTime(new Date(), "yyyy-MM-dd  HH:mm:ss")
+                // The system's LC_TIME chooses date order and 12/24-hour time.
+                text: new Date().toLocaleString(Qt.locale(), Locale.ShortFormat)
 
                 Timer {
                     interval: 1000
                     running: true
                     repeat: true
-                    onTriggered: clockText.text = Qt.formatDateTime(new Date(), "yyyy-MM-dd  HH:mm:ss")
+                    onTriggered: clockText.text = new Date().toLocaleString(Qt.locale(), Locale.ShortFormat)
                 }
             }
         }
