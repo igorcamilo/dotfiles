@@ -37,6 +37,10 @@ Dependency updates are a maintenance task performed inside NixOS with
 `nix flake update`; they are never part of installation. Do not install Nix on
 macOS for this procedure.
 
+The graphical live ISO may leave Nix's flake command-line interfaces disabled.
+`install.sh` enables `nix-command` and `flakes` only for itself and its child
+processes. You do not need to edit the ISO's Nix configuration.
+
 The installer lists every whole disk available under `/dev/disk/by-id`, along
 with its device path, model, serial number, size, transport, type, and mount
 status. It then asks for the full identifier to erase.

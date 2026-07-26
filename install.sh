@@ -18,6 +18,19 @@ INSTALL_TMP_ROOT=""
 USER_PASS=""
 USER_PASS_CONFIRM=""
 
+enable_required_nix_features() {
+  local required_setting="extra-experimental-features = nix-command flakes"
+
+  # Live ISOs include Nix but may not enable the flake command-line interface.
+  # Keep the override local to this installer and the commands it starts.
+  if [[ -n ${NIX_CONFIG:-} ]]; then
+    NIX_CONFIG="${NIX_CONFIG}"$'\n'"${required_setting}"
+  else
+    NIX_CONFIG="$required_setting"
+  fi
+  export NIX_CONFIG
+}
+
 fail() {
   echo "Error: $*" >&2
   exit 1
@@ -357,6 +370,8 @@ run_install() {
 
 main() {
   local dry_run=false
+
+  enable_required_nix_features
 
   while [[ $# -gt 0 ]]; do
     case "$1" in

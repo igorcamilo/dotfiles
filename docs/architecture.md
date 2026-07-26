@@ -219,6 +219,11 @@ installer replaces only the selected host's placeholder with the real scan.
 `install.sh` is intentionally more defensive than the rest of the repository
 because it destroys a disk. Its work is divided by the confirmation boundary.
 
+The graphical ISO includes Nix but may leave its flake interfaces disabled.
+The installer enables `nix-command` and `flakes` through its own process
+environment, which also covers the Nix commands it starts without editing the
+live system's configuration.
+
 Before confirmation it:
 
 1. requires root and UEFI;

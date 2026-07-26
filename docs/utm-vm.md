@@ -1,8 +1,9 @@
 # Create the UTM virtual machine
 
-This guide ends when `igor-vm` is ready to boot the NixOS installer. All
-commands run inside NixOS, disk selection, installation, first boot, and
-installation troubleshooting are in [install.md](install.md).
+This guide ends when `igor-vm` is ready to boot the NixOS installer.
+Everything here happens in Finder or UTM on macOS. Disk selection,
+installation, first boot, and installation troubleshooting are in
+[install.md](install.md), where every Nix command runs inside NixOS.
 
 The repository includes a ready-to-import UTM template. It was created and
 round-trip tested with UTM 4.7.5 on Apple Silicon. The template uses UTM's
@@ -15,11 +16,30 @@ Mac's partition table.
    is the version tested by this repository.
 2. Download the
    [official NixOS ARM64 minimal ISO](https://nixos.org/download/).
-3. In Finder, open
-   [`templates/igor-vm.utm`](../templates/igor-vm.utm). UTM adds `igor-vm` to
-   its library.
-4. Leave the VM stopped. Select its empty removable CD/DVD drive, choose
+3. In Finder, locate
+   [`templates/igor-vm.utm`](../templates/igor-vm.utm), but **do not open this
+   repository copy**.
+4. Copy the complete `igor-vm.utm` package to a working location outside the
+   repository, such as a `Virtual Machines` folder in your home directory.
+5. Open the copied package. UTM registers and modifies that working copy in
+   place.
+6. Leave the VM stopped. Select its empty removable CD/DVD drive, choose
    **Browse…**, and attach the downloaded NixOS ISO.
+
+Opening the repository package directly does not make another copy. Booting
+it changes its virtual disk, UEFI variables, TPM state, and removable-media
+bookmark, which dirties the repository and can destroy the pristine template.
+
+If the repository copy is already registered in UTM, stop the VM, open its
+action menu, choose **Move…**, and move it outside the repository. Then restore
+the pristine repository package:
+
+```sh
+git restore templates/igor-vm.utm
+```
+
+UTM documents moving a registered VM in its
+[action menu](https://docs.getutm.app/basics/actions/).
 
 The ISO remains an external removable disk image. It is deliberately not
 stored in the template or this repository. UTM documents this distinction in
