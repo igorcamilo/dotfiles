@@ -5,7 +5,7 @@ passphrase somewhere independent of the target.
 
 ## Boot the installation environment
 
-Boot an x86_64 NixOS ISO on the physical desktop. All following commands run
+Boot an x86_64 NixOS ISO on the desktop. All following commands run
 inside that NixOS environment, never on macOS.
 
 ## Prepare the exact source

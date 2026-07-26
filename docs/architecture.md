@@ -35,7 +35,7 @@ it does not install or boot the result.
 | Input | An external dependency such as Nixpkgs, Disko, or Home Manager |
 | `flake.lock` | Exact revisions of every input |
 | Module | A Nix file that declares part of the desired system |
-| Host | One machine with a hostname and architecture |
+| Host | A machine with a hostname and architecture |
 | Nixpkgs | The package collection and NixOS module library |
 | Disko | The module and tool that partitions, encrypts, and mounts disks |
 | Home Manager | The module that configures Igor's user session |
@@ -82,16 +82,10 @@ Multiple modules may set different parts of the same section. NixOS merges
 those declarations and reports conflicts rather than silently choosing based
 on file order.
 
-## Why the flake has only one output
+## Why the hostname omits the architecture
 
-There is exactly one configuration, for one machine:
-
-| Host | Machine |
-| --- | --- |
-| `igor-desktop` | Physical desktop, x86_64 |
-
-The hostname does not contain the architecture because it names one specific
-machine. Architecture is machine metadata in `flake.nix`.
+`igor-desktop` names a specific machine. Architecture is separate machine
+metadata recorded in `flake.nix`, not part of the hostname.
 
 The configuration does not change identity during Secure Boot setup. Instead,
 Lanzaboote handles the temporary first-boot state:
@@ -111,7 +105,7 @@ eight generations and measures PCRs 4 and 7 for the TPM policy.
 
 ## How a host is assembled
 
-`flake.nix` is the entry point. For the chosen host it combines:
+`flake.nix` is the entry point. For `igor-desktop` it combines:
 
 1. Disko's NixOS module;
 2. Home Manager's NixOS module;
@@ -122,12 +116,8 @@ eight generations and measures PCRs 4 and 7 for the TPM policy.
 7. `modules/boot/splash.nix`, the shared graphical boot; and
 8. `hosts/<name>/default.nix`, the machine-specific facts.
 
-The `nixosConfigurations.igor-desktop` output records only the architecture and
-host module:
-
-| Host | System | Host module |
-| --- | --- | --- |
-| `igor-desktop` | `x86_64-linux` | `hosts/igor-desktop/default.nix` |
+The `nixosConfigurations.igor-desktop` output sets the system to
+`x86_64-linux` and the host module to `hosts/igor-desktop/default.nix`.
 
 CI evaluates those values and rejects a build whose declared hostname or CPU
 architecture does not match what the job expects.
@@ -144,16 +134,16 @@ Shared configuration belongs at the repository root or under `modules/`:
 - `modules/boot/secure-boot.nix` contains the one shared boot policy.
 - `modules/boot/splash.nix` enables Plymouth's BGRT splash and password prompt.
 
-Only facts about one machine belong under `hosts/<name>/`:
+Only facts about the specific machine belong under `hosts/<name>/`:
 
 - hostname;
 - target architecture;
 - stable installation-disk identifier; and
 - generated kernel and hardware information.
 
-This boundary answers the usual placement question: if both computers should
-receive a change, it is shared; if only one computer should receive it, it is
-host-specific.
+This boundary answers the usual placement question: a setting that describes
+the computer in general is shared; a fact that describes this particular
+machine — its hardware, its disk, its hostname — is host-specific.
 
 The shared system settings are:
 
@@ -323,9 +313,9 @@ complete Quickshell configurations: their `PanelWindow` and session-lock types
 need a real Wayland compositor and its protocols, while an offscreen Qt process
 has no window-system backend. Starting a nested compositor merely to make that
 test pass would add infrastructure without reproducing the real login or lock
-environment. The native system build already proves that the configured Quickshell package
-can be produced; actual bar, greeter, and lock-screen behavior remains a
-hardware acceptance test.
+environment. The native system build already proves that the configured
+Quickshell package can be produced; actual bar, greeter, and lock-screen
+behavior remains a hardware acceptance test.
 
 Another separate job scans the complete Git history for secrets.
 
@@ -405,8 +395,8 @@ Update dependencies:
 Change the disk layout:
 
 1. edit `modules/storage/luks-btrfs.nix`;
-2. review the change carefully: it is destructive-adjacent and there is no
-   second machine to test it on first.
+2. review the change carefully: it is destructive-adjacent and hard to
+   rehearse safely before running the installer for real.
 
 ## Design rules
 

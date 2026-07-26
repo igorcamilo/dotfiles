@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Evaluate and build one host on its native CPU architecture.
+# Evaluate and build the host on its native CPU architecture.
 
 set -euo pipefail
 

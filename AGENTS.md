@@ -22,7 +22,7 @@ vendor-specific per-agent files or nested-file discovery.
    - Do not create tiny modules or generic frameworks that add navigation
      without clarifying ownership.
    - Add comments for reasons and safety constraints, not for obvious syntax.
-3. This is a single-host personal configuration, not a fleet framework.
+3. This is a personal configuration, not a fleet framework.
    - Shared behavior belongs in the root configuration or `modules/`.
    - Hardware, hostname, and disk identity belong under `hosts/<name>/`.
    - Do not add deployment frameworks, automatic discovery, or fleet
@@ -65,7 +65,7 @@ vendor-specific per-agent files or nested-file discovery.
   the Disko app used by `install.sh`.
 - `configuration.nix`: shared machine-wide operating-system configuration.
 - `home.nix`: shared user-session configuration.
-- `hosts/igor-desktop/`: physical x86_64 host facts.
+- `hosts/igor-desktop/`: x86_64 host facts.
 - `modules/`: shared storage and boot concerns.
 - `dotfiles/`: Hyprland and Quickshell runtime configuration.
 - `install.sh`: destructive installation workflow.

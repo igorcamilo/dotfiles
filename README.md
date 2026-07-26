@@ -1,13 +1,10 @@
 # Igor's NixOS configuration
 
-This repository is an executable description of one computer:
+This repository is an executable description of `igor-desktop`, Igor's
+`x86_64-linux` desktop.
 
-| Host | CPU architecture | Machine |
-| --- | --- | --- |
-| `igor-desktop` | `x86_64-linux` | Physical desktop |
-
-Plymouth provides the shared BGRT boot splash and graphical disk-unlock
-prompt. The host directory contains only the facts specific to that machine.
+Plymouth provides the BGRT boot splash and graphical disk-unlock prompt. The
+`hosts/igor-desktop/` directory holds the facts specific to that machine.
 
 If Nix and NixOS are new to you, start with
 [How this repository works](docs/architecture.md). It defines the terminology,
