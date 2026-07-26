@@ -8,8 +8,9 @@ This repository is an executable description of two computers:
 | `igor-vm` | `aarch64-linux` | UTM virtual machine on Apple Silicon |
 
 Both machines use the same desktop, user account, encrypted disk layout, and
-security policy. A host directory contains only the facts that differ between
-the two machines.
+security policy. Plymouth provides the shared BGRT boot splash and graphical
+disk-unlock prompt. A host directory contains only the facts that differ
+between the two machines.
 
 If Nix and NixOS are new to you, start with
 [How this repository works](docs/architecture.md). It defines the terminology,

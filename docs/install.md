@@ -111,10 +111,19 @@ After the installer finishes:
 - On `igor-vm`, shut down the guest, use UTM's removable-drive control to eject
   the NixOS ISO, and start the VM from its VirtIO disk.
 
-The VM configuration keeps early boot and the LUKS prompt visible on the
-graphical display. Its UTM template also exposes a built-in terminal connected
-to `ttyAMA0`, Linux's name for the VM's first ARM serial port. If graphical
-login fails, follow
+Plymouth's BGRT theme appears after the boot menu and asks for the LUKS
+passphrase on the graphical display. Typed characters are intentionally not
+shown; enter the passphrase and press Return. Press Escape to switch between
+the splash and detailed boot messages.
+
+The exact background can differ between the physical desktop and UTM because
+BGRT reuses a firmware logo only when that firmware provides one. The
+graphical password prompt does not depend on the two machines showing the same
+logo.
+
+The UTM template also exposes a built-in terminal connected to `ttyAMA0`,
+Linux's name for the VM's first ARM serial port. If graphical login fails,
+follow
 [Open the recovery terminal](utm-vm.md#open-the-recovery-terminal) and log in
 there to inspect or rebuild the system; no boot-menu edit is required.
 

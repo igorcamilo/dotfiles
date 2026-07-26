@@ -35,6 +35,7 @@
         home-manager.nixosModules.home-manager
         ./configuration.nix
         ./modules/boot/secure-boot.nix
+        ./modules/boot/splash.nix
         {
           home-manager = {
             useGlobalPkgs = true;

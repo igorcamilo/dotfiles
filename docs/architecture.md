@@ -41,6 +41,8 @@ it does not install or boot the result.
 | Home Manager | The module that configures Igor's user session |
 | systemd-boot | The UEFI boot menu installed and managed through Lanzaboote |
 | Lanzaboote | Builds, signs, and installs the machine's boot artifacts |
+| Plymouth | Draws the graphical boot and encrypted-disk prompt |
+| BGRT | Plymouth theme that preserves the firmware's boot logo when available |
 | UEFI | The firmware interface that starts the bootloader |
 | TPM | Hardware or virtual hardware that can unlock LUKS after trusted boot |
 
@@ -118,7 +120,8 @@ eight generations and measures PCRs 4 and 7 for the TPM policy.
 4. `configuration.nix`, the shared operating-system and desktop settings;
 5. `home.nix`, Igor's shared user-session settings;
 6. `modules/boot/secure-boot.nix`, the shared boot policy; and
-7. `hosts/<name>/default.nix`, the machine-specific facts.
+7. `modules/boot/splash.nix`, the shared graphical boot; and
+8. `hosts/<name>/default.nix`, the machine-specific facts.
 
 The two `mkHost` calls record only the architecture and host module:
 
@@ -140,6 +143,7 @@ Shared configuration belongs at the repository root or under `modules/`:
   whole operating system.
 - `modules/storage/luks-btrfs.nix` describes the disk layout.
 - `modules/boot/secure-boot.nix` contains the one shared boot policy.
+- `modules/boot/splash.nix` enables Plymouth's BGRT splash and password prompt.
 
 Only facts about one machine belong under `hosts/<name>/`:
 
@@ -180,9 +184,11 @@ Home Manager owns:
 | Ghostty | Provides the configured terminal |
 | hypridle | Locks after 5 minutes and blanks displays 30 seconds later |
 
-The VM adds hardware graphics, a graphical boot console, the QEMU guest agent,
-and the SPICE agent. Its UTM template also exposes the ARM serial console as a
-built-in recovery terminal. Everything else is shared with the desktop.
+The VM loads its VirtIO GPU in the initrd so Plymouth is available before the
+encrypted root opens. It also adds hardware graphics, a graphical boot console,
+the QEMU guest agent, and the SPICE agent. Its UTM template exposes the ARM
+serial console as a built-in recovery terminal. Everything else is shared with
+the desktop.
 
 ## Storage and hardware
 
@@ -259,7 +265,8 @@ The graphical path is:
 
 ```mermaid
 flowchart TD
-    boot["boot"] --> greetd["greetd"]
+    boot["boot"] --> unlock["Plymouth and LUKS unlock"]
+    unlock --> greetd["greetd"]
     greetd --> greeter["temporary Hyprland greeter session"]
     greeter --> loginui["Quickshell login UI"]
     loginui --> session["normal Hyprland user session"]
@@ -350,7 +357,7 @@ and full Git history.
 | `home.nix` | Shared settings owned by Igor |
 | `hosts/` | Per-machine facts |
 | `modules/storage/` | Shared encrypted disk layout |
-| `modules/boot/` | Shared Secure Boot and measured-boot policy |
+| `modules/boot/` | Shared Secure Boot, measured boot, and graphical splash |
 | `modules/virtualisation/` | UTM guest additions |
 | `templates/igor-vm.utm/` | Importable blank UTM 4.7.5 virtual machine |
 | `dotfiles/hypr/` | Hyprland startup and key bindings |

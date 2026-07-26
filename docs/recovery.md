@@ -10,6 +10,8 @@
 - On the physical desktop, use Ctrl+Alt+F3 (or another free VT) if graphical
   login fails.
 - Select an older NixOS generation from the boot menu after a broken rebuild.
+- Press Escape while Plymouth is running to reveal boot details or a text
+  prompt; press Escape again to return to the graphical splash.
 - Boot the architecture-matching NixOS installer, unlock and mount the target,
   then rebuild from `/mnt/home/igor/dotfiles` if no installed generation
   works.
