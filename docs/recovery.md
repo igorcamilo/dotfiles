@@ -12,6 +12,11 @@
 - Select an older NixOS generation from the boot menu after a broken rebuild.
 - Press Escape while Plymouth is running to reveal boot details or a text
   prompt; press Escape again to return to the graphical splash.
+- If UTM opens the `Shell>` UEFI prompt, the firmware did not find an installed
+  bootloader. Enter `fs0:` and then `ls EFI\BOOT`. A completed ARM installation
+  contains `BOOTAA64.EFI`, which can be started with
+  `EFI\BOOT\BOOTAA64.EFI`. If that file is absent, reattach the installer ISO
+  and rerun the installer; the previous installation did not complete.
 - Boot the architecture-matching NixOS installer, unlock and mount the target,
   then rebuild from `/mnt/home/igor/dotfiles` if no installed generation
   works.

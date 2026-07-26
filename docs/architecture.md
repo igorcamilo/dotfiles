@@ -250,14 +250,22 @@ After confirmation it:
 1. copies the exact checked-out commit to a temporary directory;
 2. obtains Git LFS from the locked Nixpkgs input and downloads tracked assets;
 3. writes the selected disk identifier into that copy;
-4. asks the locked Disko tool to partition, encrypt, and mount the disk;
-5. moves the copied repository into the target user's home;
-6. generates hardware data without filesystems;
-7. installs the selected host configuration;
-8. sends the login password to `chpasswd` over standard input; and
-9. clears temporary password variables and files.
+4. reads and confirms the login and LUKS secrets without echoing them;
+5. sends the LUKS passphrase over standard input to the locked Disko tool,
+   skips Disko's now-redundant second wipe confirmation, partitions, encrypts,
+   and mounts the disk, then verifies all four target mount points;
+6. clears the LUKS passphrase from the shell;
+7. moves the copied repository into the target user's home;
+8. generates hardware data without filesystems;
+9. installs the selected host configuration and verifies its system profile,
+   fallback EFI bootloader, and NixOS boot image;
+10. sends the login password to `chpasswd` over standard input; and
+11. saves the detailed subcommand log, flushes disk writes, and clears
+    temporary password variables and files.
 
-The password, its hash, and the LUKS passphrase are never written to Git.
+The password, its hash, and the LUKS passphrase are never written to Git or
+placed in command-line arguments. Routine subcommand output is kept out of the
+terminal and written to the installation log instead.
 
 ## Desktop and login flow
 

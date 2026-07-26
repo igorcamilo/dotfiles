@@ -29,9 +29,12 @@ assert_fails validate_disk_path "/dev/nvme0n1"
 assert_fails validate_disk_path "/dev/disk/by-id/device with spaces"
 assert_fails validate_disk_path "/dev/disk/by-id/../../sda"
 
-assert_succeeds validate_passwords "correct horse battery staple" "correct horse battery staple"
-assert_fails validate_passwords "" ""
-assert_fails validate_passwords "one" "two"
+assert_succeeds validate_passwords \
+  "test password" \
+  "correct horse battery staple" \
+  "correct horse battery staple"
+assert_fails validate_passwords "test password" "" ""
+assert_fails validate_passwords "test password" "one" "two"
 
 [[ $(machine_to_nix_system x86_64) == "x86_64-linux" ]]
 [[ $(machine_to_nix_system aarch64) == "aarch64-linux" ]]
@@ -39,6 +42,12 @@ assert_fails validate_passwords "one" "two"
 assert_fails machine_to_nix_system riscv64
 assert_succeeds validate_host_architecture "aarch64-linux" "aarch64-linux"
 assert_fails validate_host_architecture "aarch64-linux" "x86_64-linux"
+[[ $(system_to_efi_architecture x86_64-linux) == "x64" ]]
+[[ $(system_to_efi_architecture aarch64-linux) == "aa64" ]]
+assert_fails system_to_efi_architecture riscv64-linux
+[[ $(system_to_efi_fallback_filename x86_64-linux) == "BOOTX64.EFI" ]]
+[[ $(system_to_efi_fallback_filename aarch64-linux) == "BOOTAA64.EFI" ]]
+assert_fails system_to_efi_fallback_filename riscv64-linux
 
 unset NIX_CONFIG
 enable_required_nix_features
@@ -47,6 +56,15 @@ enable_required_nix_features
 NIX_CONFIG="warn-dirty = false"
 enable_required_nix_features
 [[ "$NIX_CONFIG" == $'warn-dirty = false\nextra-experimental-features = nix-command flakes' ]]
+
+INSTALL_LOG="${test_temp_dir}/installer.log"
+visible_output=$(
+  run_logged sh -c \
+    'printf "%s\n" "logged stdout"; printf "%s\n" "logged stderr" >&2'
+)
+[[ -z "$visible_output" ]]
+grep -Fq "logged stdout" "$INSTALL_LOG"
+grep -Fq "logged stderr" "$INSTALL_LOG"
 
 mkdir -p "${test_temp_dir}/hosts/igor-desktop" "${test_temp_dir}/hosts/igor-vm"
 write_disk_device \
@@ -75,6 +93,19 @@ set -euo pipefail
 
 if [[ ${1:-} == "shell" ]]; then
   printf '%s\n' "$*" >> "${MOCK_NIX_LOG:?}"
+  exit 0
+fi
+
+if [[ ${1:-} == "run" ]]; then
+  printf '%s\n' "$*" >> "${MOCK_NIX_LOG:?}"
+  IFS= read -r first_password
+  IFS= read -r second_password
+  [[ "$first_password" == "test LUKS passphrase" ]]
+  [[ "$second_password" == "$first_password" ]]
+  if IFS= read -r unexpected_input; then
+    exit 1
+  fi
+  printf '%s\n' "mock Disko output"
   exit 0
 fi
 
@@ -136,6 +167,21 @@ assert_succeeds with_mock_nix validate_flake_host "$test_temp_dir" "igor-vm"
 mkdir -p "${test_temp_dir}/hosts/unknown-output"
 assert_fails with_mock_nix validate_flake_host "$test_temp_dir" "unknown-output"
 
+INSTALL_LOG="${test_temp_dir}/disko.log"
+export MOCK_NIX_LOG="${test_temp_dir}/disko-command.log"
+LUKS_PASS="test LUKS passphrase"
+disko_output=$(
+  with_mock_nix partition_and_mount_disk "$test_temp_dir" "igor-vm"
+)
+unset LUKS_PASS
+[[ -z "$disko_output" ]]
+grep -Fq -- "--yes-wipe-all-disks" "$MOCK_NIX_LOG"
+grep -Fq -- "--flake ${test_temp_dir}#igor-vm" "$MOCK_NIX_LOG"
+assert_fails grep -Fq "test LUKS passphrase" "$MOCK_NIX_LOG"
+grep -Fq "mock Disko output" "$INSTALL_LOG"
+assert_fails grep -Fq "test LUKS passphrase" "$INSTALL_LOG"
+unset MOCK_NIX_LOG
+
 mkdir -p "${test_temp_dir}/lfs-checkout"
 export MOCK_NIX_LOG="${test_temp_dir}/nix-shell.log"
 assert_succeeds with_mock_nix hydrate_lfs_checkout "${test_temp_dir}/lfs-checkout"
@@ -187,6 +233,40 @@ assert_fails hardware_config_is_valid \
   "aarch64-linux"
 assert_fails hardware_config_is_valid \
   "${test_temp_dir}/hardware-bad.nix" \
+  "x86_64-linux"
+
+installed_root="${test_temp_dir}/installed-root"
+mkdir -p \
+  "${installed_root}/nix/var/nix/profiles" \
+  "${installed_root}/boot/EFI/BOOT" \
+  "${installed_root}/boot/EFI/systemd" \
+  "${installed_root}/boot/EFI/Linux"
+ln -s /nix/store/test-system \
+  "${installed_root}/nix/var/nix/profiles/system"
+printf 'fallback loader\n' \
+  > "${installed_root}/boot/EFI/BOOT/BOOTAA64.EFI"
+printf 'fallback loader\n' \
+  > "${installed_root}/boot/EFI/BOOT/BOOTX64.EFI"
+printf 'systemd-boot\n' \
+  > "${installed_root}/boot/EFI/systemd/systemd-bootaa64.efi"
+printf 'systemd-boot\n' \
+  > "${installed_root}/boot/EFI/systemd/systemd-bootx64.efi"
+printf 'NixOS boot image\n' \
+  > "${installed_root}/boot/EFI/Linux/nixos-generation-1.efi"
+
+assert_succeeds installed_system_is_bootable \
+  "$installed_root" \
+  "aarch64-linux"
+assert_succeeds installed_system_is_bootable \
+  "$installed_root" \
+  "x86_64-linux"
+rm "${installed_root}/boot/EFI/BOOT/BOOTAA64.EFI"
+assert_fails installed_system_is_bootable \
+  "$installed_root" \
+  "aarch64-linux"
+rm "${installed_root}/boot/EFI/BOOT/BOOTX64.EFI"
+assert_fails installed_system_is_bootable \
+  "$installed_root" \
   "x86_64-linux"
 
 echo "Installer function tests passed."
