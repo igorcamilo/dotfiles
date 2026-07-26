@@ -3,9 +3,13 @@
 #
 # Run this script as root from a clean, reviewed Git checkout on the NixOS
 # installer. It installs the exact checked-out commit, not a moving remote
-# branch. Disko asks for the LUKS recovery passphrase during formatting.
+# branch. Passwords are read interactively and never passed as command-line
+# arguments.
 
 set -euo pipefail
+
+# Do not let an inherited or command-line xtrace setting expose passwords.
+set +x
 
 TARGET_ROOT="/mnt"
 USERNAME="igor"
@@ -18,6 +22,8 @@ INSTALL_TMP_ROOT=""
 INSTALL_LOG=""
 USER_PASS=""
 USER_PASS_CONFIRM=""
+LUKS_PASS=""
+LUKS_PASS_CONFIRM=""
 
 enable_required_nix_features() {
   local required_setting="extra-experimental-features = nix-command flakes"
@@ -38,7 +44,7 @@ fail() {
 }
 
 cleanup() {
-  unset USER_PASS USER_PASS_CONFIRM
+  unset USER_PASS USER_PASS_CONFIRM LUKS_PASS LUKS_PASS_CONFIRM
 
   if [[ -n "${INSTALL_TMP_ROOT:-}" && "$INSTALL_TMP_ROOT" == /tmp/nixos-install.* ]]; then
     rm -rf -- "$INSTALL_TMP_ROOT"
@@ -61,12 +67,31 @@ finish() {
 }
 
 start_install_log() {
-  INSTALL_LOG="/tmp/nixos-install-${TARGET_HOST}.log"
-  : > "$INSTALL_LOG"
-  exec > >(tee -a "$INSTALL_LOG") 2>&1
+  local log_directory
 
-  echo "Installer log: ${INSTALL_LOG}"
-  echo "A real installation succeeds only when the final success banner appears."
+  log_directory=$(mktemp -d "/tmp/nixos-install-${TARGET_HOST}.XXXXXX")
+  INSTALL_LOG="${log_directory}/install.log"
+  (
+    umask 077
+    printf 'Detailed installer output for %s\n' "$TARGET_HOST" > "$INSTALL_LOG"
+  )
+}
+
+run_logged() {
+  "$@" >> "$INSTALL_LOG" 2>&1
+}
+
+partition_and_mount_disk() {
+  local staged_repo=$1
+  local target_host=$2
+
+  # The caller has already required the exact stable disk identifier.
+  printf '%s\n%s\n' "$LUKS_PASS" "$LUKS_PASS" \
+    | nix run "${staged_repo}#disko" -- \
+      --mode destroy,format,mount \
+      --yes-wipe-all-disks \
+      --flake "${staged_repo}#${target_host}" \
+      >> "$INSTALL_LOG" 2>&1
 }
 
 validate_host_name() {
@@ -84,11 +109,12 @@ validate_disk_path() {
 }
 
 validate_passwords() {
-  local password=$1
-  local confirmation=$2
+  local description=$1
+  local password=$2
+  local confirmation=$3
 
-  [[ -n "$password" ]] || fail "the login password cannot be empty"
-  [[ "$password" == "$confirmation" ]] || fail "passwords did not match"
+  [[ -n "$password" ]] || fail "the ${description} cannot be empty"
+  [[ "$password" == "$confirmation" ]] || fail "${description} entries did not match"
 }
 
 write_disk_device() {
@@ -197,8 +223,8 @@ require_commands() {
   local command_name
 
   for command_name in \
-    find findmnt git grep install lsblk mountpoint nix nixos-enter \
-    nixos-generate-config nixos-install readlink sync tee uname; do
+    find findmnt git grep install lsblk mktemp mountpoint nix nixos-enter \
+    nixos-generate-config nixos-install readlink sync uname; do
     command -v "$command_name" >/dev/null \
       || fail "required command is missing: ${command_name}"
   done
@@ -365,7 +391,12 @@ run_install() {
     || fail "the source checkout is dirty; review and commit or stash it before installing"
 
   source_commit=$(git -C "$source_root" rev-parse HEAD)
-  EXPECTED_SYSTEM=$(validate_flake_host "$source_root" "$TARGET_HOST")
+  if ! EXPECTED_SYSTEM=$(validate_flake_host \
+    "$source_root" \
+    "$TARGET_HOST" \
+    2>> "$INSTALL_LOG"); then
+    fail "could not validate ${TARGET_HOST}; see ${INSTALL_LOG}"
+  fi
   installer_system=$(machine_to_nix_system "$(uname -m)")
   validate_host_architecture "$EXPECTED_SYSTEM" "$installer_system"
 
@@ -389,6 +420,7 @@ run_install() {
 
   if [[ "$dry_run" == "true" ]]; then
     echo "Dry run complete: validation passed; no changes were made."
+    echo "Detailed log: ${INSTALL_LOG}"
     return
   fi
 
@@ -396,40 +428,47 @@ run_install() {
   echo
   read -r -s -p "Confirm login password: " USER_PASS_CONFIRM
   echo
-  validate_passwords "$USER_PASS" "$USER_PASS_CONFIRM"
+  validate_passwords "login password" "$USER_PASS" "$USER_PASS_CONFIRM"
   unset USER_PASS_CONFIRM
+
+  read -r -s -p "LUKS recovery passphrase: " LUKS_PASS
+  echo
+  read -r -s -p "Confirm LUKS recovery passphrase: " LUKS_PASS_CONFIRM
+  echo
+  validate_passwords \
+    "LUKS recovery passphrase" \
+    "$LUKS_PASS" \
+    "$LUKS_PASS_CONFIRM"
+  unset LUKS_PASS_CONFIRM
 
   INSTALL_TMP_ROOT=$(mktemp -d /tmp/nixos-install.XXXXXX)
   staged_repo="${INSTALL_TMP_ROOT}/dotfiles"
   generated_hardware_dir="${INSTALL_TMP_ROOT}/hardware"
-  prepare_exact_checkout "$source_root" "$staged_repo"
+  echo
+  echo "STEP 1/5: Prepare the exact checkout and Git LFS files."
+  run_logged prepare_exact_checkout "$source_root" "$staged_repo"
   mkdir -p "$generated_hardware_dir"
+  echo "STEP 1/5 complete."
 
   write_disk_device "$requested_device" "${staged_repo}/${HOST_RELATIVE_PATH}/disk-device"
 
   echo
-  echo "The private installation checkout now contains the selected disk identity."
-  echo "Nix may call this Git tree dirty; that is expected and does not refer to"
-  echo "the clean checkout from which you started the installer."
-  echo
-  echo "STEP 1/4: Partition and mount the target disk."
-  echo "Disko will ask for the LUKS passphrase twice. Both entries are hidden."
-  if ! nix run "${staged_repo}#disko" -- \
-    --mode destroy,format,mount \
-    --flake "${staged_repo}#${TARGET_HOST}"; then
+  echo "STEP 2/5: Partition, encrypt, and mount the target disk."
+  if ! partition_and_mount_disk "$staged_repo" "$TARGET_HOST"; then
     fail "Disko failed while partitioning, encrypting, or mounting the target"
   fi
+  unset LUKS_PASS
   target_mounts_are_ready "$TARGET_ROOT" \
     || fail "Disko returned without mounting /mnt, /mnt/boot, /mnt/home, and /mnt/nix"
-  echo "STEP 1/4 complete: the encrypted filesystems are mounted."
+  echo "STEP 2/5 complete: the encrypted filesystems are mounted."
 
   [[ ! -e "$REPO_DEST" ]] || fail "target repository already exists: ${REPO_DEST}"
   mkdir -p "$(dirname "$REPO_DEST")"
   mv "$staged_repo" "$REPO_DEST"
 
   echo
-  echo "STEP 2/4: Scan the machine hardware."
-  nixos-generate-config \
+  echo "STEP 3/5: Scan the machine hardware."
+  run_logged nixos-generate-config \
     --no-filesystems \
     --root "$TARGET_ROOT" \
     --dir "$generated_hardware_dir" \
@@ -440,7 +479,7 @@ run_install() {
     || fail "generated hardware configuration has filesystems or the wrong platform/initrd settings"
   install -m 0644 "$generated_hardware" \
     "${REPO_DEST}/${HOST_RELATIVE_PATH}/hardware-configuration.nix"
-  echo "STEP 2/4 complete: the hardware scan is valid."
+  echo "STEP 3/5 complete: the hardware scan is valid."
 
   mkdir -p "${TARGET_ROOT}/etc"
   [[ ! -e "${TARGET_ROOT}/etc/nixos" && ! -L "${TARGET_ROOT}/etc/nixos" ]] \
@@ -448,12 +487,9 @@ run_install() {
   ln -s "/home/${USERNAME}/dotfiles" "${TARGET_ROOT}/etc/nixos"
 
   echo
-  echo "STEP 3/4: Build and install NixOS and its EFI bootloader."
-  echo "Measured-boot messages at this stage describe the live ISO's boot, not the"
-  echo "installed system. Its first boot regenerates that policy; do not enroll"
-  echo "TPM unlocking until docs/secure-boot.md verifies PCRs 4 and 7."
-
-  nixos-install \
+  echo "STEP 4/5: Build and install NixOS and its EFI bootloader."
+  echo "This is normally the longest step."
+  run_logged nixos-install \
     --root "$TARGET_ROOT" \
     --flake "${REPO_DEST}#${TARGET_HOST}" \
     --no-root-passwd \
@@ -461,16 +497,17 @@ run_install() {
 
   installed_system_is_bootable "$TARGET_ROOT" "$EXPECTED_SYSTEM" \
     || fail "nixos-install returned without a system profile, fallback bootloader, or NixOS boot image"
-  echo "STEP 3/4 complete: the system and fallback EFI bootloader are present."
+  echo "STEP 4/5 complete: the system and fallback EFI bootloader are present."
 
   echo
-  echo "STEP 4/4: Set the login password and finalize the installation."
+  echo "STEP 5/5: Set the login password and finalize the installation."
   printf '%s:%s\n' "$USERNAME" "$USER_PASS" \
     | nixos-enter --root "$TARGET_ROOT" -c 'chpasswd' \
+      >> "$INSTALL_LOG" 2>&1 \
     || fail "could not set the login password"
   unset USER_PASS
 
-  nixos-enter --root "$TARGET_ROOT" \
+  run_logged nixos-enter --root "$TARGET_ROOT" \
     -c "chown -R ${USERNAME}:users /home/${USERNAME}/dotfiles" \
     || fail "could not assign the installed checkout to ${USERNAME}"
 
@@ -478,7 +515,7 @@ run_install() {
   install -m 0600 "$INSTALL_LOG" \
     "${TARGET_ROOT}/var/log/dotfiles-install.log"
   sync
-  echo "STEP 4/4 complete: files have been flushed to the target disk."
+  echo "STEP 5/5 complete: files have been flushed to the target disk."
 
   echo
   echo "============================================================"
@@ -486,7 +523,6 @@ run_install() {
   echo "============================================================"
   echo "The live ISO checkout remains unchanged. After reboot, ~/dotfiles is the"
   echo "installed checkout and contains the generated host data."
-  echo "The installation log is stored at /var/log/dotfiles-install.log."
   echo "After reboot, review and commit the generated host data:"
   echo "  git -C ~/dotfiles diff -- hosts/${TARGET_HOST}"
   echo "  git -C ~/dotfiles add hosts/${TARGET_HOST}"
@@ -494,6 +530,9 @@ run_install() {
   echo
   echo "Secure Boot is not ready yet. The first boot generates signing keys."
   echo "Keep Secure Boot disabled and then follow docs/secure-boot.md."
+  echo
+  echo "Detailed log before reboot: ${TARGET_ROOT}/var/log/dotfiles-install.log"
+  echo "Detailed log after reboot: /var/log/dotfiles-install.log"
 }
 
 main() {

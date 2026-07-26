@@ -80,19 +80,30 @@ Before destructive confirmation, the installer:
 After exact confirmation, it creates a private copy of the exact checked-out
 commit, hydrates its LFS files, and only then starts Disko. It writes the
 selected host's disk identity and hardware scan, installs `<host>`, and sends
-the login password directly to `chpasswd`. Disko/cryptsetup separately requests
-the LUKS recovery passphrase.
+the login password directly to `chpasswd`.
 
-Disko asks for that passphrase twice, and neither entry is echoed. Afterward,
-the installer prints four numbered stages. It has succeeded only if the final
+The installer interactively asks twice for the login password and twice for
+the separate LUKS recovery passphrase. Input is hidden. It supplies the
+confirmed LUKS passphrase to Disko over standard input, never as a
+command-line argument or persistent file, and clears it from the shell after
+Disko finishes.
+
+The installer has already required the full `ERASE /dev/disk/by-id/...`
+confirmation before it invokes Disko's non-interactive wipe mode. That flag
+removes only Disko's duplicate `yes` prompt; it does not weaken the installer's
+device checks or exact confirmation.
+
+The terminal shows only five stage descriptions and their completion status.
+Detailed output from Nix, Git LFS, Disko, hardware scanning, and
+`nixos-install` goes to the log. Installation has succeeded only if the final
 `INSTALLATION SUCCEEDED` banner appears. A shell prompt, closed terminal, or
 reboot before that banner means the target may contain partitions but is not
 safe to boot.
 
-The live-session log remains at `/tmp/nixos-install-<host>.log` after a
-failure. On success it is also copied to
-`/var/log/dotfiles-install.log` in the installed system. Passwords and
-passphrases are not echoed into the log.
+The root-only live-session log remains at
+`/tmp/nixos-install-<host>.*/install.log` after a failure. On success it is
+also copied to `/var/log/dotfiles-install.log` in the installed system.
+Passwords and passphrases are not echoed into the log.
 
 Writing those two host facts deliberately makes the private installation copy
 different from its Git commit. Nix may therefore warn that its Git tree is
@@ -100,14 +111,15 @@ dirty. This warning refers to the private copy being installed, not to the
 clean source checkout that the installer already verified. The original
 checkout in the live ISO remains unchanged.
 
-Lanzaboote also attempts to predict measured-boot state while `nixos-install`
-is still running. At that point the VM is booted from the live ISO, so messages
-about unrecognized boot components, an empty PCR protection mask, or a missing
-machine ID describe a provisional policy. They do not mean that installation
-failed when `install.sh` subsequently prints its success message. Never enroll
-TPM unlocking with this installation-time policy: the installed system
-regenerates it after boot, and [secure-boot.md](secure-boot.md) verifies its
-actual PCR contents before enrollment.
+The detailed log can contain Lanzaboote's attempt to predict measured-boot
+state while `nixos-install` is still running. At that point the VM is booted
+from the live ISO, so messages about unrecognized boot components, an empty
+PCR protection mask, or a missing machine ID describe a provisional policy.
+They do not mean that installation failed when `install.sh` subsequently
+prints its success banner. Never enroll TPM unlocking with this
+installation-time policy: the installed system regenerates it after boot, and
+[secure-boot.md](secure-boot.md) verifies its actual PCR contents before
+enrollment.
 
 The installed system includes `git-lfs` because the copied repository
 continues to track the wallpaper through LFS. This is unrelated to the Git
