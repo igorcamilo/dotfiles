@@ -25,7 +25,36 @@ run_check() {
 }
 
 check_nix_format() {
-  find . -type f -name '*.nix' -print0 | xargs -0 nixfmt --check
+  local file
+  local formatted
+  local status=0
+  local temp_dir
+
+  temp_dir=$(mktemp -d)
+  formatted="$temp_dir/formatted.nix"
+
+  # Format a copy so CI can print the exact patch without changing the tree.
+  while IFS= read -r -d '' file; do
+    cp "$file" "$formatted"
+
+    if ! nixfmt "$formatted"; then
+      printf 'nixfmt could not parse %s\n' "$file" >&2
+      status=1
+      continue
+    fi
+
+    if ! diff -u \
+      --label "$file" \
+      --label "$file (formatted)" \
+      "$file" "$formatted"
+    then
+      status=1
+    fi
+  done < <(find . -type f -name '*.nix' -print0)
+
+  rm -f "$formatted"
+  rmdir "$temp_dir"
+  return "$status"
 }
 
 check_dead_nix() {
@@ -37,11 +66,19 @@ check_nix_static_analysis() {
 }
 
 check_shell() {
-  shellcheck -x install.sh tests/install-functions.sh scripts/check.sh
+  shellcheck -x \
+    install.sh \
+    tests/install-functions.sh \
+    scripts/check.sh \
+    scripts/check-quickshell.sh
 }
 
 check_bash_syntax() {
-  bash -n install.sh tests/install-functions.sh scripts/check.sh
+  bash -n \
+    install.sh \
+    tests/install-functions.sh \
+    scripts/check.sh \
+    scripts/check-quickshell.sh
 }
 
 check_installer() {
@@ -53,8 +90,55 @@ check_current_tree_for_secrets() {
 }
 
 check_qml() {
-  find dotfiles/quickshell -type f -name '*.qml' -print0 \
-    | xargs -0 -n1 qmllint
+  local file
+  local import_path
+  local log
+  local status=0
+  local -a import_arguments=()
+  local -a import_paths=()
+  local -a qml_files=()
+
+  if [[ -z ${QML_IMPORT_PATH:-} ]]; then
+    printf 'QML_IMPORT_PATH is empty; enter the Nix development shell first.\n' >&2
+    return 1
+  fi
+
+  local IFS=:
+  # qmllint wants one -I argument per Nix store import directory.
+  read -r -a import_paths <<< "$QML_IMPORT_PATH"
+  for import_path in "${import_paths[@]}"; do
+    if [[ -n $import_path ]]; then
+      import_arguments+=(-I "$import_path")
+    fi
+  done
+
+  log=$(mktemp)
+
+  # Fail on missing type information before it creates cascading diagnostics.
+  if ! qmllint "${import_arguments[@]}" --import=error \
+    tests/qml/ImportProbe.qml >"$log" 2>&1
+  then
+    printf 'QML imports are unavailable; check QML_IMPORT_PATH:\n' >&2
+    cat "$log" >&2
+    rm -f "$log"
+    return 1
+  fi
+
+  while IFS= read -r -d '' file; do
+    qml_files+=("$file")
+  done < <(find dotfiles/quickshell -type f -name '*.qml' -print0)
+
+  # Known Quickshell tooling warnings stay hidden; real failures print the log.
+  if ! qmllint "${import_arguments[@]}" --import=error \
+    "${qml_files[@]}" >"$log" 2>&1
+  then
+    printf 'QML lint failed:\n' >&2
+    cat "$log" >&2
+    status=1
+  fi
+
+  rm -f "$log"
+  return "$status"
 }
 
 run_check "Nix formatting" check_nix_format

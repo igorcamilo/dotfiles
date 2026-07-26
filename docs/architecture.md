@@ -282,13 +282,23 @@ There is one GitHub Actions workflow:
 
 - an x86 runner evaluates and builds `igor-desktop`;
 - an ARM runner evaluates and builds `igor-vm`;
-- the x86 runner also runs `scripts/check.sh`; and
+- both runners use their native Quickshell binary to load the bar, greeter, and
+  lock-screen configurations;
+- the x86 runner runs the architecture-neutral `scripts/check.sh` once; and
 - a separate job scans the entire Git history for secrets.
 
 `scripts/check.sh` runs every repository-level check even if an earlier one
 fails. It covers Nix formatting, dead-code analysis, Nix static analysis,
 ShellCheck, Bash syntax, installer tests, current-tree secret scanning, and QML
-linting.
+linting. `qmllint` receives explicit Qt and Quickshell import paths, treats a
+missing import as an error, and prints diagnostics only when it fails.
+
+The Quickshell checks complement that static lint. They start each complete
+configuration with an offscreen software renderer and require Quickshell to
+report `Configuration Loaded`. Running this check once per architecture catches
+binary or plugin differences without duplicating every repository-level check.
+It does not exercise Wayland protocols, PAM, greetd, or user interaction; those
+remain VM acceptance tests.
 
 `nix flake check --keep-going` also keeps independent system builds running
 after a failed check. Together, these rules produce one complete failure report
@@ -337,6 +347,7 @@ pre-commit Gitleaks scan. CI also scans the current tree and full Git history.
 | `install.sh` | Destructive installation workflow |
 | `tests/` | Non-destructive installer unit tests |
 | `scripts/check.sh` | Readable repository-level validation |
+| `scripts/check-quickshell.sh` | Native Quickshell configuration load test |
 | `.github/workflows/ci.yml` | Native x86, ARM, and history validation |
 | `lefthook.yml` | Local pre-commit secret protection |
 | `.gitignore` | Excludes secrets, keys, and local Nix build links |

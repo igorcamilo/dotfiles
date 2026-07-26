@@ -128,16 +128,22 @@
             '';
         };
 
-      checkPackages =
-        pkgs: [
-          pkgs.bash
-          pkgs.deadnix
-          pkgs.gitleaks
-          pkgs.nixfmt
+      checkPackages = pkgs: [
+        pkgs.bash
+        pkgs.deadnix
+        pkgs.gitleaks
+        pkgs.nixfmt
+        pkgs.qt6.qtdeclarative
+        pkgs.quickshell
+        pkgs.shellcheck
+        pkgs.statix
+      ];
+
+      qmlImportPath =
+        pkgs:
+        lib.makeSearchPath pkgs.qt6.qtbase.qtQmlPrefix [
           pkgs.qt6.qtdeclarative
           pkgs.quickshell
-          pkgs.shellcheck
-          pkgs.statix
         ];
 
       repositoryCheck =
@@ -147,7 +153,7 @@
         pkgs.runCommand "repository-quality"
           {
             nativeBuildInputs = checkPackages pkgs;
-            QML2_IMPORT_PATH = "${pkgs.quickshell}/lib/qt-6/qml";
+            QML_IMPORT_PATH = qmlImportPath pkgs;
           }
           ''
             cp -R ${self} source
@@ -156,15 +162,41 @@
             ${pkgs.bash}/bin/bash scripts/check.sh
             touch "$out"
           '';
+
+      # qmllint catches static mistakes once on x86. This separate check asks
+      # each architecture's real Quickshell binary to load all three configs.
+      mkQuickshellLoadCheck =
+        system:
+        let
+          pkgs = pkgsFor system;
+        in
+        pkgs.runCommand "quickshell-load"
+          {
+            nativeBuildInputs = [
+              pkgs.coreutils
+              pkgs.gnugrep
+              pkgs.quickshell
+            ];
+            QML_IMPORT_PATH = qmlImportPath pkgs;
+          }
+          ''
+            cp -R ${self}/dotfiles/quickshell configs
+            chmod -R u+w configs
+            ${pkgs.bash}/bin/bash ${self}/scripts/check-quickshell.sh "$PWD/configs"
+            touch "$out"
+          '';
     in
     {
       inherit nixosConfigurations;
 
       checks = {
         x86_64-linux = mkHostChecks "igor-desktop" // {
+          quickshell-load = mkQuickshellLoadCheck "x86_64-linux";
           repository-quality = repositoryCheck;
         };
-        aarch64-linux = mkHostChecks "igor-vm";
+        aarch64-linux = mkHostChecks "igor-vm" // {
+          quickshell-load = mkQuickshellLoadCheck "aarch64-linux";
+        };
       };
 
       # install.sh uses the Disko app pinned by flake.lock.
@@ -185,7 +217,7 @@
         {
           default = pkgs.mkShell {
             packages = checkPackages pkgs ++ [ pkgs.lefthook ];
-            QML2_IMPORT_PATH = "${pkgs.quickshell}/lib/qt-6/qml";
+            QML_IMPORT_PATH = qmlImportPath pkgs;
           };
         }
       );
