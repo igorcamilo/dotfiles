@@ -36,6 +36,18 @@ hl.config({
 ---------------
 
 hl.on("hyprland.start", function()
+    -- systemd --user is a separate, longer-lived manager that keeps whatever
+    -- environment it started with; it never sees Hyprland's own WAYLAND_DISPLAY
+    -- and friends unless told. Without this, anything launched via
+    -- `systemctl --user start` (quickshell-lock, quickshell-launcher) can't
+    -- reach the compositor and exits immediately, silently, since Type=simple
+    -- doesn't track whether the process actually got anywhere.
+    hl.exec_cmd(
+        "systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE"
+    )
+    hl.exec_cmd(
+        "dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE"
+    )
     hl.exec_cmd("quickshell")
     hl.exec_cmd("hyprpolkitagent")
 end)
