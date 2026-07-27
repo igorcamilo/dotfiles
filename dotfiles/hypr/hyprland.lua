@@ -7,12 +7,18 @@ local fileManager  = "dolphin"
 ------------
 
 -- ASUS TUF VG34VQL1B: 3440x1440, FreeSync Premium up to 165Hz over DisplayPort.
+-- Its VA panel has a widely-reported brightness/gamma flicker when VRR is
+-- active during normal desktop use (visible on mouse movement, and reported
+-- on both Hyprland and KWin, so it is the panel, not the compositor). vrr=2
+-- restricts adaptive sync to fullscreen content (games, video) and runs the
+-- desktop at a fixed 165Hz, where the flicker is most noticeable. Drop to
+-- vrr=0 or to 144Hz if fullscreen content still flickers.
 hl.monitor({
     output   = "",
     mode     = "3440x1440@165",
     position = "auto",
     scale    = "auto",
-    vrr      = 1,
+    vrr      = 2,
 })
 
 -----------
@@ -30,7 +36,7 @@ hl.config({
 ---------------
 
 hl.on("hyprland.start", function()
-    hl.exec_cmd("quickshell")
+    hl.exec_cmd("quickshell -c bar")
     hl.exec_cmd("hyprpolkitagent")
 end)
 

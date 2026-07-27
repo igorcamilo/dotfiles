@@ -9,6 +9,13 @@ set -uo pipefail
 
 failures=0
 
+# hosts/*/hardware-configuration.nix is nixos-generate-config's own output
+# (its header says not to hand-edit it), so its style is the generator's, not
+# this repository's: the checks below that hit it skip it. lefthook.yml reads
+# this same file so the exemption can't drift out of sync between CI and the
+# local pre-commit hook again.
+generated_nix_glob=$(cat scripts/generated-nix-files.glob)
+
 run_check() {
   local name=$1
   local status
@@ -50,7 +57,7 @@ check_nix_format() {
     then
       status=1
     fi
-  done < <(find . -type f -name '*.nix' -print0)
+  done < <(find . -type f -name '*.nix' -not -path "./$generated_nix_glob" -print0)
 
   rm -f "$formatted"
   rmdir "$temp_dir"
@@ -58,11 +65,12 @@ check_nix_format() {
 }
 
 check_dead_nix() {
-  deadnix --fail .
+  # shellcheck disable=SC2086 # deadnix --exclude wants expanded paths, not a glob string
+  deadnix --fail --exclude $generated_nix_glob -- .
 }
 
 check_nix_static_analysis() {
-  statix check .
+  statix check -i "$generated_nix_glob" .
 }
 
 check_shell() {
@@ -124,7 +132,13 @@ check_qml() {
 
   while IFS= read -r -d '' file; do
     qml_files+=("$file")
-  done < <(find dotfiles/quickshell -type f -name '*.qml' -print0)
+  done < <(
+    # dotfiles/quickshell/greeter/ is shelved, undeployed work kept for a
+    # later Hyprland+Quickshell greeter; it's not wired into home.nix and its
+    # imports are stale until it's reinstated, so it's excluded here rather
+    # than kept passing by coincidence.
+    find dotfiles/quickshell -type f -name '*.qml' -not -path 'dotfiles/quickshell/greeter/*' -print0
+  )
 
   # Known Quickshell tooling warnings stay hidden; real failures print the log.
   if ! qmllint "${import_arguments[@]}" --import=error \

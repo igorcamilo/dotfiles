@@ -167,7 +167,7 @@ Home Manager owns:
 | Setting | What it does |
 | --- | --- |
 | Hyprland and Quickshell files | Installs the user's desktop files |
-| Quickshell lock service | Gives every lock request one idempotent service |
+| Quickshell lock and launcher services | Gives every lock or launcher request one idempotent service |
 | KeePassXC | Starts automatically; can provide the Secret Service API once enabled in its settings |
 | Ghostty | Provides the configured terminal |
 | hypridle | Locks after 5 minutes and blanks displays 30 seconds later |
@@ -311,8 +311,8 @@ need a real Wayland compositor and its protocols, while an offscreen Qt process
 has no window-system backend. Starting a nested compositor merely to make that
 test pass would add infrastructure without reproducing the real login or lock
 environment. The native system build already proves that the configured
-Quickshell package can be produced; actual bar and lock-screen behavior
-remains a hardware acceptance test.
+Quickshell package can be produced; actual bar, lock-screen, and launcher
+behavior remains a hardware acceptance test.
 
 Another separate job scans the complete Git history for secrets.
 
@@ -353,8 +353,8 @@ and full Git history.
 | `modules/boot/` | Shared Secure Boot, measured boot, and graphical splash |
 | `dotfiles/hypr/` | Hyprland startup and key bindings |
 | `dotfiles/quickshell/bar/` | User bar and wallpaper |
-| `dotfiles/quickshell/lockscreen/` | Lock screen |
-| `dotfiles/quickshell/shared/` | Reused login and lock components |
+| `dotfiles/quickshell/lockscreen/` | Lock screen, with its own `shared/` login components |
+| `dotfiles/quickshell/launcher/` | App launcher |
 | `wallpapers/` | Images installed by the shared system configuration |
 | `install.sh` | Destructive installation workflow |
 | `tests/` | Non-destructive installer unit tests |

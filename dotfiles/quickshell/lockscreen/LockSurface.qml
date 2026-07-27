@@ -1,6 +1,6 @@
 import QtQuick
 import QtQml
-import "../shared"
+import "./shared"
 
 Item {
     id: root
