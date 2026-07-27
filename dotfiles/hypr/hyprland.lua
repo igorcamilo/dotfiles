@@ -1,4 +1,4 @@
-local mainMod     = "SUPER"
+local mainMod      = "SUPER"
 local terminal     = "ghostty"
 local fileManager  = "dolphin"
 
