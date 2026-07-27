@@ -68,12 +68,14 @@
       # config and stops looking at named subfolders entirely, so the bar has
       # to be a named config (-c bar) like lockscreen/launcher, not the root.
       ".config/quickshell/bar".source = ./dotfiles/quickshell/bar;
+      # Quickshell also confines each named config's imports to its own root,
+      # and home-manager can't map a second file/directory nested inside a
+      # path that's already one whole-directory symlink (fails at build time:
+      # "Error installing file ... outside $HOME"), so lockscreen's shared/
+      # components live physically inside dotfiles/quickshell/lockscreen/
+      # rather than being deployed separately.
       ".config/quickshell/lockscreen".source = ./dotfiles/quickshell/lockscreen;
       ".config/quickshell/launcher".source = ./dotfiles/quickshell/launcher;
-      # Quickshell also confines each named config's imports to its own root,
-      # so shared/ has to be deployed inside lockscreen/ rather than next to
-      # it; LockSurface.qml imports it as "./shared" to match.
-      ".config/quickshell/lockscreen/shared".source = ./dotfiles/quickshell/shared;
     };
   };
 

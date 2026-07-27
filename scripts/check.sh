@@ -132,7 +132,13 @@ check_qml() {
 
   while IFS= read -r -d '' file; do
     qml_files+=("$file")
-  done < <(find dotfiles/quickshell -type f -name '*.qml' -print0)
+  done < <(
+    # dotfiles/quickshell/greeter/ is shelved, undeployed work kept for a
+    # later Hyprland+Quickshell greeter; it's not wired into home.nix and its
+    # imports are stale until it's reinstated, so it's excluded here rather
+    # than kept passing by coincidence.
+    find dotfiles/quickshell -type f -name '*.qml' -not -path 'dotfiles/quickshell/greeter/*' -print0
+  )
 
   # Known Quickshell tooling warnings stay hidden; real failures print the log.
   if ! qmllint "${import_arguments[@]}" --import=error \

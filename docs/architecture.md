@@ -353,9 +353,8 @@ and full Git history.
 | `modules/boot/` | Shared Secure Boot, measured boot, and graphical splash |
 | `dotfiles/hypr/` | Hyprland startup and key bindings |
 | `dotfiles/quickshell/bar/` | User bar and wallpaper |
-| `dotfiles/quickshell/lockscreen/` | Lock screen |
+| `dotfiles/quickshell/lockscreen/` | Lock screen, with its own `shared/` login components |
 | `dotfiles/quickshell/launcher/` | App launcher |
-| `dotfiles/quickshell/shared/` | Reused login and lock components |
 | `wallpapers/` | Images installed by the shared system configuration |
 | `install.sh` | Destructive installation workflow |
 | `tests/` | Non-destructive installer unit tests |
