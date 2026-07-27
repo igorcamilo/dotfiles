@@ -17,4 +17,9 @@ _:
       "rd.systemd.show_status=auto"
     ];
   };
+
+  # Loads the amdgpu driver during the initrd, before Plymouth starts, so the
+  # splash renders at its final resolution instead of flickering when the
+  # driver takes over later in boot.
+  hardware.amdgpu.initrd.enable = true;
 }

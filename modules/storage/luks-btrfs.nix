@@ -19,7 +19,10 @@ in
         ESP = {
           priority = 1;
           name = "ESP";
-          size = "1G";
+          # Lanzaboote keeps a full signed UKI (kernel + initrd, amdgpu firmware
+          # included) per generation, times configurationLimit generations kept
+          # in modules/boot/secure-boot.nix; 1G leaves too little headroom.
+          size = "2G";
           type = "EF00";
           content = {
             type = "filesystem";
