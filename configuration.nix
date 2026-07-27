@@ -105,15 +105,16 @@
       flake = "/etc/nixos";
     };
   };
-  # qt5ct/qt6ct (platformTheme) is the standard way to theme Qt apps outside
-  # a running KDE Plasma session. adwaita-dark (style) then renders every Qt
-  # widget - including Dolphin/Kate's context menus - to match the
-  # adw-gtk3-dark GTK theme in home.nix, instead of Qt's own Breeze/Fusion
-  # look. Electron apps (VS Code) draw their own chrome regardless and stay
-  # visually separate either way.
+  # platformTheme and style are independent: style (adwaita-dark) renders
+  # every Qt widget - including Dolphin/Kate's context menus - while
+  # platformTheme supplies the actual palette (background/text colors).
+  # qt5ct/qt6ct would need its own separate, manually-configured palette (its
+  # default otherwise leaves some text unreadable against adwaita-dark); gtk2
+  # instead reads the palette straight from the adw-gtk3-dark GTK theme in
+  # home.nix that's already configured and already correct for Firefox.
   qt = {
     enable = true;
-    platformTheme = "qt5ct";
+    platformTheme = "gtk2";
     style = "adwaita-dark";
   };
 

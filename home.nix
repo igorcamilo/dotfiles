@@ -147,12 +147,22 @@
         # restart of VS Code to take effect).
         "window.titleControlsStyle" = "hidden";
       };
-      # Under Hyprland (not a desktop environment Electron recognizes),
-      # Chromium's keyring auto-detection falls back to an unencrypted
-      # store, which is how the GitHub sign-in token ended up in plain
-      # text. This forces the same Secret Service backend KeePassXC already
-      # provides (also needs a full VS Code restart).
-      argvSettings."password-store" = "gnome-libsecret";
+      argvSettings = {
+        # Under Hyprland (not a desktop environment Electron recognizes),
+        # Chromium's keyring auto-detection falls back to an unencrypted
+        # store, which is how the GitHub sign-in token ended up in plain
+        # text. This forces the same Secret Service backend KeePassXC
+        # already provides (also needs a full VS Code restart).
+        "password-store" = "gnome-libsecret";
+        # VS Code writes both of these into argv.json itself on first run.
+        # Copied verbatim from igor-desktop's pre-Nix argv.json so VS Code
+        # has no missing fields to try to write back into what is now a
+        # read-only Nix-store symlink - crash-reporter-id in particular is
+        # only an install-correlation id, not a secret, but VS Code's own
+        # comment asks not to change it once assigned.
+        "enable-crash-reporter" = true;
+        "crash-reporter-id" = "6eeb860a-4e8d-482b-bae9-b6fd7c3f17dd";
+      };
     };
 
     # home-manager-managed (not just enabled in configuration.nix) so that
