@@ -97,6 +97,13 @@
     zsh.enable = true;
     # Needs the 32-bit graphics support enabled above.
     steam.enable = true;
+    # Shorter, friendlier front-end for nixos-rebuild (build-tree progress,
+    # a diff of the generation change); flake points it at this checkout so
+    # `nh os switch` needs no other arguments.
+    nh = {
+      enable = true;
+      flake = "/etc/nixos";
+    };
   };
   # qt5ct/qt6ct (platformTheme) is the standard way to theme Qt apps outside
   # a running KDE Plasma session; Kvantum (style) is the engine that actually
