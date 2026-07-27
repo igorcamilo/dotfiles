@@ -24,10 +24,10 @@
     homeDirectory = "/home/igor";
     stateVersion = "26.05";
 
-    # hyprpolkitagent: GUI polkit agent, started from hyprland.conf. dolphin:
-    # file manager bound in hyprland.conf, with ffmpegthumbs for its video
+    # hyprpolkitagent: GUI polkit agent, started from hyprland.lua. dolphin:
+    # file manager bound in hyprland.lua, with ffmpegthumbs for its video
     # thumbnails. playerctl and wireplumber (wpctl): back the media-key binds
-    # in hyprland.conf. ffmpeg: the system H.264/AAC decoder Firefox loads at
+    # in hyprland.lua. ffmpeg: the system H.264/AAC decoder Firefox loads at
     # run time (it can't bundle those codecs itself; see the firefox profile
     # below). libva-utils: run `vainfo` to confirm GPU video decode is active.
     packages = [
@@ -60,7 +60,7 @@
     # environment.etc in configuration.nix instead of home-manager, since
     # it runs as a separate system user with no home directory here.
     file = {
-      ".config/hypr/hyprland.conf".source = ./dotfiles/hypr/hyprland.conf;
+      ".config/hypr/hyprland.lua".source = ./dotfiles/hypr/hyprland.lua;
       ".config/quickshell/shell.qml".source = ./dotfiles/quickshell/bar/shell.qml;
       ".config/quickshell/lockscreen".source = ./dotfiles/quickshell/lockscreen;
       ".config/quickshell/launcher".source = ./dotfiles/quickshell/launcher;

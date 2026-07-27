@@ -20,6 +20,10 @@
 
   nixpkgs.config.allowUnfree = true;
 
+  # RDNA4 (RX 9070 XT) needs a newer kernel and Mesa than the nixpkgs default
+  # kernel targets; track the latest stable release instead of the default.
+  boot.kernelPackages = pkgs.linuxPackages_latest;
+
   users.users.igor = {
     isNormalUser = true;
     description = "Igor Camilo";
@@ -67,7 +71,7 @@
     fwupd.enable = true;
 
     # greetd runs a throwaway Hyprland+Quickshell "greeter" session (see
-    # dotfiles/hypr/greeter.conf and dotfiles/quickshell/greeter) that
+    # dotfiles/hypr/greeter.lua and dotfiles/quickshell/greeter) that
     # authenticates over greetd's own IPC protocol, then hands off to the
     # user's normal session below. The greeter runs as its own system
     # user (created automatically by this module), so its files are
@@ -78,10 +82,14 @@
       settings.default_session = {
         # Preserve compositor and greeter output after their runtime directory
         # disappears. Read it with: journalctl -b -t greetd-greeter
-        command = "${pkgs.systemd}/bin/systemd-cat --identifier=greetd-greeter -- start-hyprland -- --config /etc/greetd/hyprland.conf";
+        command = "${pkgs.systemd}/bin/systemd-cat --identifier=greetd-greeter -- start-hyprland -- --config /etc/greetd/hyprland.lua";
         user = "greeter";
       };
     };
+
+    udisks2.enable = true;
+
+    btrfs.autoScrub.enable = true;
   };
 
   # Desktop: Hyprland, with Quickshell as the shell layer (bar, wallpaper,
@@ -105,14 +113,24 @@
     style = "kvantum";
   };
 
-  # xdg-desktop-portal-hyprland (added automatically by programs.hyprland
-  # above) only covers Screenshot/ScreenCast. Dolphin's own portal fills in
-  # FileChooser and other KDE-flavored requests.
-  xdg.portal.extraPortals = [ pkgs.kdePackages.xdg-desktop-portal-kde ];
+  # programs.hyprland adds xdg-desktop-portal-hyprland and ships its own
+  # hyprland-portals.conf (default = hyprland, then gtk). That file lives in
+  # the package's own store path, so the override below at a higher-priority
+  # /etc path is needed to route FileChooser to Dolphin's KDE portal instead.
+  xdg.portal = {
+    extraPortals = [ pkgs.kdePackages.xdg-desktop-portal-kde ];
+    config.hyprland = {
+      default = [
+        "hyprland"
+        "gtk"
+      ];
+      "org.freedesktop.impl.portal.FileChooser" = [ "kde" ];
+    };
+  };
 
   # GUI privilege prompts (mounting a drive, some NetworkManager actions)
   # need an authentication agent; home.nix installs Hyprland's own
-  # (hyprpolkitagent) and hyprland.conf starts it.
+  # (hyprpolkitagent) and hyprland.lua starts it.
   security.polkit.enable = true;
 
   environment = {
@@ -125,7 +143,7 @@
     ];
     etc = {
       "wallpaper.jpg".source = ./wallpapers/weic2216b.jpg;
-      "greetd/hyprland.conf".source = ./dotfiles/hypr/greeter.conf;
+      "greetd/hyprland.lua".source = ./dotfiles/hypr/greeter.lua;
       # Keep the greeter and its ../shared QML import in one Nix store tree.
       "greetd/quickshell".source = ./dotfiles/quickshell;
     };
