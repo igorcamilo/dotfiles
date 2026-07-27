@@ -299,8 +299,9 @@ Architecture-neutral work runs once in a separate `repository-quality` job.
 `scripts/check-repository.sh` obtains its tools from the locked `nixpkgs` input
 and then runs `scripts/check.sh`. That script checks Nix formatting and static
 analysis, shell syntax and ShellCheck, installer tests, the current tree for
-secrets, and QML with `qmllint`. It continues through independent checks so one
-failure does not hide the others.
+secrets, QML with `qmllint`, and the Hyprland Lua config with StyLua and
+selene. It continues through independent checks so one failure does not hide
+the others.
 
 Here, `nix shell` only makes those tools available for one command. It does not
 install them permanently or add them to either computer's configuration.
@@ -362,7 +363,7 @@ and full Git history.
 | `scripts/check-repository.sh` | Runs repository checks with locked tools |
 | `scripts/check-system.sh` | Native validation for the desktop host |
 | `.github/workflows/ci.yml` | Native system, repository quality, and history |
-| `lefthook.yml` | Local pre-commit secret protection |
+| `lefthook.yml` | Local pre-commit secret, Nix, and Lua checks |
 | `.gitignore` | Excludes local key files and Nix build links |
 | `docs/` | Procedures and this explanation |
 

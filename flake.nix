@@ -41,6 +41,12 @@
             useGlobalPkgs = true;
             useUserPackages = true;
             users.igor = import ./home.nix;
+            # Activation otherwise aborts the first time a home.file/programs.*
+            # target already exists as a real, non-Home-Manager-owned file
+            # (e.g. VS Code's own settings.json and argv.json, written before
+            # home.nix declared them). This renames the collision aside
+            # (settings.json -> settings.json.backup) instead of failing.
+            backupFileExtension = "backup";
           };
         }
       ];

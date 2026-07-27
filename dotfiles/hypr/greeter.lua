@@ -11,11 +11,11 @@
 -- desktop at a fixed 165Hz, where the flicker is most noticeable. Drop to
 -- vrr=0 or to 144Hz if fullscreen content still flickers.
 hl.monitor({
-    output   = "",
-    mode     = "3440x1440@165",
+    output = "",
+    mode = "3440x1440@165",
     position = "auto",
-    scale    = "auto",
-    vrr      = 2,
+    scale = "auto",
+    vrr = 2,
 })
 
 -- Exit only after a successful Quickshell session. If QML cannot start,
