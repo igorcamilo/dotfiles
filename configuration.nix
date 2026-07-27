@@ -49,20 +49,40 @@
     };
   };
 
-  # PipeWire is the current NixOS-recommended audio server, replacing both
-  # PulseAudio and JACK.
   security.rtkit.enable = true; # Realtime scheduling for PipeWire.
-  services.pipewire = {
-    enable = true;
-    alsa.enable = true;
-    alsa.support32Bit = true;
-    pulse.enable = true;
+
+  services = {
+    # PipeWire is the current NixOS-recommended audio server, replacing both
+    # PulseAudio and JACK.
+    pipewire = {
+      enable = true;
+      alsa.enable = true;
+      alsa.support32Bit = true;
+      pulse.enable = true;
+    };
+
+    # Pairing UI and polkit rules for the Bluetooth radio enabled above.
+    blueman.enable = true;
+
+    fwupd.enable = true;
+
+    # greetd runs a throwaway Hyprland+Quickshell "greeter" session (see
+    # dotfiles/hypr/greeter.conf and dotfiles/quickshell/greeter) that
+    # authenticates over greetd's own IPC protocol, then hands off to the
+    # user's normal session below. The greeter runs as its own system
+    # user (created automatically by this module), so its files are
+    # published system-wide via environment.etc below rather than
+    # home-manager.
+    greetd = {
+      enable = true;
+      settings.default_session = {
+        # Preserve compositor and greeter output after their runtime directory
+        # disappears. Read it with: journalctl -b -t greetd-greeter
+        command = "${pkgs.systemd}/bin/systemd-cat --identifier=greetd-greeter -- start-hyprland -- --config /etc/greetd/hyprland.conf";
+        user = "greeter";
+      };
+    };
   };
-
-  # Pairing UI and polkit rules for the Bluetooth radio enabled above.
-  services.blueman.enable = true;
-
-  services.fwupd.enable = true;
 
   # Desktop: Hyprland, with Quickshell as the shell layer (bar, wallpaper,
   # lock screen). Wallpaper is drawn by Quickshell itself (a background
@@ -95,12 +115,6 @@
   # (hyprpolkitagent) and hyprland.conf starts it.
   security.polkit.enable = true;
 
-  # greetd runs a throwaway Hyprland+Quickshell "greeter" session (see
-  # dotfiles/hypr/greeter.conf and dotfiles/quickshell/greeter) that
-  # authenticates over greetd's own IPC protocol, then hands off to the
-  # user's normal session below. The greeter runs as its own system
-  # user (created automatically by this module), so its files are
-  # published system-wide via environment.etc rather than home-manager.
   environment = {
     systemPackages = [
       pkgs.git
@@ -121,16 +135,6 @@
   # and Ghostty's own UI expect (see home.nix). Installed system-wide, not
   # just for igor, since fontconfig discovery works the same either way.
   fonts.packages = [ pkgs.nerd-fonts.jetbrains-mono ];
-
-  services.greetd = {
-    enable = true;
-    settings.default_session = {
-      # Preserve compositor and greeter output after their runtime directory
-      # disappears. Read it with: journalctl -b -t greetd-greeter
-      command = "${pkgs.systemd}/bin/systemd-cat --identifier=greetd-greeter -- start-hyprland -- --config /etc/greetd/hyprland.conf";
-      user = "greeter";
-    };
-  };
 
   nix.settings.experimental-features = [
     "nix-command"

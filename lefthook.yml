@@ -2,3 +2,13 @@ pre-commit:
   commands:
     secrets:
       run: gitleaks protect --staged --redact
+    nixfmt:
+      glob: "*.nix"
+      run: nixfmt {staged_files}
+      stage_fixed: true
+    # Same invocation scripts/check.sh uses in CI: statix doesn't offer a
+    # reliable fix for every lint (e.g. repeated-key warnings are report-only),
+    # so this checks rather than auto-fixes, same as CI does.
+    statix:
+      glob: "*.nix"
+      run: statix check .
