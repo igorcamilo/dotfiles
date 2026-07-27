@@ -25,14 +25,35 @@
     stateVersion = "26.05";
 
     # hyprpolkitagent: GUI polkit agent, started from hyprland.conf. dolphin:
-    # file manager bound in hyprland.conf. playerctl and wireplumber (wpctl):
-    # back the media-key binds in hyprland.conf.
+    # file manager bound in hyprland.conf, with ffmpegthumbs for its video
+    # thumbnails. playerctl and wireplumber (wpctl): back the media-key binds
+    # in hyprland.conf. ffmpeg: the system H.264/AAC decoder Firefox loads at
+    # run time (it can't bundle those codecs itself; see the firefox profile
+    # below). libva-utils: run `vainfo` to confirm GPU video decode is active.
     packages = [
       pkgs.hyprpolkitagent
       pkgs.kdePackages.dolphin
+      pkgs.kdePackages.ffmpegthumbs
+      # Kate and KWrite ship as one package upstream; kwrite below is the
+      # lightweight one, kate the fuller editor, same binary set.
+      pkgs.kdePackages.kate
       pkgs.playerctl
       pkgs.wireplumber
+      pkgs.ffmpeg
+      pkgs.libva-utils
+      pkgs.vscode
     ];
+
+    # nano is the plain terminal editor git commit/crontab -e/etc. expect
+    # from $EDITOR; it blocks the caller by default, no extra flag needed.
+    # NIXOS_OZONE_WL: VS Code (kept for manual use, not wired as a default)
+    # is Electron; without this it falls back to XWayland instead of native
+    # Wayland.
+    sessionVariables = {
+      EDITOR = "nano";
+      VISUAL = "nano";
+      NIXOS_OZONE_WL = "1";
+    };
 
     # Hyprland session and Quickshell shells (bar, lock screen, launcher).
     # The greeter has its own copy of Quickshell's config, published via
@@ -76,7 +97,13 @@
     # the profile below once there's a real stylesheet to put there.
     firefox = {
       enable = true;
-      profiles.igor.isDefault = true;
+      profiles.igor = {
+        isDefault = true;
+        # Mesa's radeonsi VA-API driver comes from hardware.graphics.enable
+        # in configuration.nix; this just tells Firefox to actually use it
+        # instead of decoding video on the CPU.
+        settings."media.ffmpeg.vaapi.enabled" = true;
+      };
     };
 
     # home-manager-managed (not just enabled in configuration.nix) so that
@@ -108,7 +135,18 @@
     colorScheme = "dark";
   };
 
-  xdg.autostart.enable = true;
+  xdg = {
+    autostart.enable = true;
+
+    # Equivalent to `xdg-mime default kwrite.desktop text/plain`, but
+    # declarative in mimeapps.list, so it survives rebuilds. Named explicitly
+    # (not via defaultApplicationPackages) since kate.desktop and
+    # kwrite.desktop ship in the same package and both claim text/plain.
+    mimeApps = {
+      enable = true;
+      defaultApplications."text/plain" = [ "kwrite.desktop" ];
+    };
+  };
 
   # Auto-lock on idle: lock at 5 minutes, blank the display 30 seconds
   # after that, lock again before suspend regardless of idle time.
