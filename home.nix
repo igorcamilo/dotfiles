@@ -69,15 +69,20 @@
   };
 
   programs = {
-    # Secret Service integration: lets applications, including
-    # NetworkManager, store and retrieve secrets through KeePassXC instead
-    # of gnome-keyring or KWallet. See README.md.
+    # Stands in for gnome-keyring or KWallet as the Secret Service provider,
+    # for applications that call that D-Bus API themselves. NetworkManager
+    # does not: it reaches a Secret Service only through a NetworkManager
+    # secret agent, which this session deliberately does not run, so Wi-Fi
+    # passphrases stay in /etc/NetworkManager/system-connections on the
+    # encrypted root rather than in a vault.
+    #
+    # Secret Service is left as a first-run GUI toggle instead of a declared
+    # setting: home-manager links keepassxc.ini read-only into the store
+    # whenever `settings` is non-empty, which would also stop KeePassXC from
+    # recording which database to reopen on autostart.
     keepassxc = {
       enable = true;
       autostart = true;
-      settings = {
-        FdoSecrets.Enabled = true;
-      };
     };
 
     ghostty = {

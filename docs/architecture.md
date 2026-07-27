@@ -168,7 +168,7 @@ Home Manager owns:
 | --- | --- |
 | Hyprland and Quickshell files | Installs the user's desktop files |
 | Quickshell lock service | Gives every lock request one idempotent service |
-| KeePassXC | Starts automatically and provides the Secret Service API |
+| KeePassXC | Starts automatically; can provide the Secret Service API once enabled in its settings |
 | Ghostty | Provides the configured terminal |
 | hypridle | Locks after 5 minutes and blanks displays 30 seconds later |
 
