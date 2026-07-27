@@ -56,9 +56,6 @@
     };
 
     # Hyprland session and Quickshell shells (bar, lock screen, launcher).
-    # The greeter has its own copy of Quickshell's config, published via
-    # environment.etc in configuration.nix instead of home-manager, since
-    # it runs as a separate system user with no home directory here.
     file = {
       ".config/hypr/hyprland.lua".source = ./dotfiles/hypr/hyprland.lua;
       ".config/quickshell/shell.qml".source = ./dotfiles/quickshell/bar/shell.qml;

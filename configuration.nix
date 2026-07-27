@@ -70,21 +70,15 @@
 
     fwupd.enable = true;
 
-    # greetd runs a throwaway Hyprland+Quickshell "greeter" session (see
-    # dotfiles/hypr/greeter.lua and dotfiles/quickshell/greeter) that
-    # authenticates over greetd's own IPC protocol, then hands off to the
-    # user's normal session below. The greeter runs as its own system
-    # user (created automatically by this module), so its files are
-    # published system-wide via environment.etc below rather than
-    # home-manager.
+    # agreety, greetd's own bundled text greeter, replaces a custom
+    # Hyprland+Quickshell greeter session while Hyprland itself is still
+    # being brought up on real hardware. On successful login it hands off
+    # to the user's Hyprland session below via start-hyprland, the same
+    # target the custom greeter used.
     greetd = {
       enable = true;
-      settings.default_session = {
-        # Preserve compositor and greeter output after their runtime directory
-        # disappears. Read it with: journalctl -b -t greetd-greeter
-        command = "${pkgs.systemd}/bin/systemd-cat --identifier=greetd-greeter -- start-hyprland -- --config /etc/greetd/hyprland.lua";
-        user = "greeter";
-      };
+      useTextGreeter = true;
+      settings.default_session.command = "${pkgs.greetd}/bin/agreety --cmd start-hyprland";
     };
 
     udisks2.enable = true;
@@ -142,10 +136,8 @@
       pkgs.quickshell
     ];
     etc = {
+      # Also read directly by the lock screen; see dotfiles/quickshell/lockscreen.
       "wallpaper.jpg".source = ./wallpapers/weic2216b.jpg;
-      "greetd/hyprland.lua".source = ./dotfiles/hypr/greeter.lua;
-      # Keep the greeter and its ../shared QML import in one Nix store tree.
-      "greetd/quickshell".source = ./dotfiles/quickshell;
     };
   };
 

@@ -259,27 +259,24 @@ The graphical path is:
 flowchart TD
     boot["boot"] --> unlock["Plymouth and LUKS unlock"]
     unlock --> greetd["greetd"]
-    greetd --> greeter["temporary Hyprland greeter session"]
-    greeter --> loginui["Quickshell login UI"]
-    loginui --> session["normal Hyprland user session"]
+    greetd --> agreety["agreety text login"]
+    agreety --> session["normal Hyprland user session"]
     session --> bar["Quickshell bar and wallpaper"]
     session --> terminal["Ghostty terminal"]
     session --> keepassxc["KeePassXC Secret Service"]
     session --> hypridle["hypridle"] --> lock["Quickshell lock service"]
 ```
 
-System-owned greeter files are installed by `configuration.nix` under
-`/etc/greetd`. The greeter and its shared QML components remain in one store
-tree so relative imports work after Nix resolves `/etc` symlinks. User-owned
-session files are installed by Home Manager from `home.nix`.
+greetd starts agreety, its own bundled text greeter, directly on the console;
+neither needs any custom configuration or QML. Session files for the
+Hyprland session itself are installed by Home Manager from `home.nix`.
 
-Both transitions into Hyprland use `start-hyprland`, Hyprland's supported
-launcher. It prepares the session environment before starting the compositor;
-the greeter additionally passes its small system-owned configuration file.
-The greeter's compositor and Quickshell output is retained in the system
-journal under the `greetd-greeter` identifier. A failed Quickshell startup
-leaves its compositor in place instead of repeatedly restarting it; a
-successful authenticated handoff exits it normally.
+On successful login, greetd starts the user's session with `start-hyprland`,
+Hyprland's supported launcher, which prepares the session environment before
+starting the compositor.
+
+agreety stands in for a planned Hyprland+Quickshell greeter, held back until
+Hyprland itself has had real-hardware testing (see `docs/recovery.md`).
 
 The lock screen is a systemd user service. Starting an already-running service
 is safe, so keyboard, idle, and suspend events can all request a lock without a
@@ -314,8 +311,8 @@ need a real Wayland compositor and its protocols, while an offscreen Qt process
 has no window-system backend. Starting a nested compositor merely to make that
 test pass would add infrastructure without reproducing the real login or lock
 environment. The native system build already proves that the configured
-Quickshell package can be produced; actual bar, greeter, and lock-screen
-behavior remains a hardware acceptance test.
+Quickshell package can be produced; actual bar and lock-screen behavior
+remains a hardware acceptance test.
 
 Another separate job scans the complete Git history for secrets.
 
@@ -356,7 +353,6 @@ and full Git history.
 | `modules/boot/` | Shared Secure Boot, measured boot, and graphical splash |
 | `dotfiles/hypr/` | Hyprland startup and key bindings |
 | `dotfiles/quickshell/bar/` | User bar and wallpaper |
-| `dotfiles/quickshell/greeter/` | Login screen |
 | `dotfiles/quickshell/lockscreen/` | Lock screen |
 | `dotfiles/quickshell/shared/` | Reused login and lock components |
 | `wallpapers/` | Images installed by the shared system configuration |

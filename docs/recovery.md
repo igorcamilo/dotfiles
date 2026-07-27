@@ -4,17 +4,13 @@
 
 - Use Ctrl+Alt+F3 (or another free VT) if graphical login fails, and log in as
   `igor` with the password chosen during installation.
-- Greeter runtime directories disappear when a failed greeter session exits,
-  so `/run/user/<greeter-uid>/hypr/.../hyprland.log` is not a durable log.
-  Read the retained logs from that VT instead:
+- agreety runs directly on the console, so its login prompt and any errors
+  are visible right there on tty1. greetd's own session decisions (including
+  failed handoffs to `start-hyprland`) are in the system journal:
 
   ```sh
-  sudo journalctl -b -t greetd-greeter
   sudo journalctl -b -u greetd
   ```
-
-  The first command contains Hyprland and Quickshell output; the second
-  contains greetd's session decisions.
 - Select an older NixOS generation from the boot menu after a broken rebuild.
 - Press Escape while Plymouth is running to reveal boot details or a text
   prompt; press Escape again to return to the graphical splash.
@@ -49,10 +45,11 @@ with `cryptsetup open --test-passphrase`.
 
 - The committed hardware module is a generic, architecture-correct
   placeholder until the first installation commits the real scan.
-- The custom Quickshell greeter and lock screen need real-hardware testing.
-- The greeter currently targets one interactive surface; multi-monitor
-  presentation has not been completed.
-- QML authentication assumes the default password-only PAM conversation.
+- The Hyprland user session and Quickshell lock screen need real-hardware
+  testing. Login uses agreety, greetd's own bundled text greeter, until a
+  Hyprland+Quickshell greeter is worth reintroducing.
+- Lock screen authentication assumes the default password-only PAM
+  conversation.
 - Audio, a graphical polkit agent, notifications, and complete portal
   integration are follow-up workstation work.
 
