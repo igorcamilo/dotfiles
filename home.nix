@@ -16,6 +16,12 @@
     Service = {
       Type = "simple";
       ExecStart = "${pkgs.quickshell}/bin/quickshell -c launcher";
+      # The launcher calls Qt.quit() right after launching an app, so it can
+      # close itself immediately; systemd's default KillMode=control-group
+      # would then kill that just-launched app too, since it shares this
+      # service's cgroup. KillMode=process only kills the tracked quickshell
+      # process, letting whatever it launched keep running.
+      KillMode = "process";
     };
   };
 
@@ -64,7 +70,10 @@
       ".config/quickshell/bar".source = ./dotfiles/quickshell/bar;
       ".config/quickshell/lockscreen".source = ./dotfiles/quickshell/lockscreen;
       ".config/quickshell/launcher".source = ./dotfiles/quickshell/launcher;
-      ".config/quickshell/shared".source = ./dotfiles/quickshell/shared;
+      # Quickshell also confines each named config's imports to its own root,
+      # so shared/ has to be deployed inside lockscreen/ rather than next to
+      # it; LockSurface.qml imports it as "./shared" to match.
+      ".config/quickshell/lockscreen/shared".source = ./dotfiles/quickshell/shared;
     };
   };
 
