@@ -59,6 +59,9 @@
     file = {
       ".config/hypr/hyprland.lua".source = ./dotfiles/hypr/hyprland.lua;
       ".config/quickshell/shell.qml".source = ./dotfiles/quickshell/bar/shell.qml;
+      # QML resolves same-directory types by filename with no import needed,
+      # but only if the file is actually deployed alongside shell.qml.
+      ".config/quickshell/Notifications.qml".source = ./dotfiles/quickshell/bar/Notifications.qml;
       ".config/quickshell/lockscreen".source = ./dotfiles/quickshell/lockscreen;
       ".config/quickshell/launcher".source = ./dotfiles/quickshell/launcher;
       ".config/quickshell/shared".source = ./dotfiles/quickshell/shared;

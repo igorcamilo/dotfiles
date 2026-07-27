@@ -9,6 +9,13 @@ set -uo pipefail
 
 failures=0
 
+# hosts/*/hardware-configuration.nix is nixos-generate-config's own output
+# (its header says not to hand-edit it), so its style is the generator's, not
+# this repository's: the checks below that hit it skip it. lefthook.yml reads
+# this same file so the exemption can't drift out of sync between CI and the
+# local pre-commit hook again.
+generated_nix_glob=$(cat scripts/generated-nix-files.glob)
+
 run_check() {
   local name=$1
   local status
@@ -30,11 +37,6 @@ check_nix_format() {
   local status=0
   local temp_dir
 
-  # hosts/*/hardware-configuration.nix is nixos-generate-config's own output
-  # (its header says not to hand-edit it), so it, and the other two checks
-  # below that hit it, skip that file: its style is the generator's, not
-  # this repository's.
-
   temp_dir=$(mktemp -d)
   formatted="$temp_dir/formatted.nix"
 
@@ -55,7 +57,7 @@ check_nix_format() {
     then
       status=1
     fi
-  done < <(find . -type f -name '*.nix' -not -path './hosts/*/hardware-configuration.nix' -print0)
+  done < <(find . -type f -name '*.nix' -not -path "./$generated_nix_glob" -print0)
 
   rm -f "$formatted"
   rmdir "$temp_dir"
@@ -63,11 +65,12 @@ check_nix_format() {
 }
 
 check_dead_nix() {
-  deadnix --fail --exclude hosts/*/hardware-configuration.nix -- .
+  # shellcheck disable=SC2086 # deadnix --exclude wants expanded paths, not a glob string
+  deadnix --fail --exclude $generated_nix_glob -- .
 }
 
 check_nix_static_analysis() {
-  statix check -i 'hosts/*/hardware-configuration.nix' .
+  statix check -i "$generated_nix_glob" .
 }
 
 check_shell() {
