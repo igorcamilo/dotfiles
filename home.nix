@@ -47,7 +47,6 @@
       pkgs.wireplumber
       pkgs.ffmpeg
       pkgs.libva-utils
-      pkgs.vscode
     ];
 
     # nano is the plain terminal editor git commit/crontab -e/etc. expect
@@ -59,6 +58,20 @@
       EDITOR = "nano";
       VISUAL = "nano";
       NIXOS_OZONE_WL = "1";
+    };
+
+    # Without this, GTK/Qt apps fall back to whatever cursor their own
+    # toolkit bundles, and Electron apps like VS Code fall back to
+    # Chromium's built-in cursor - all visibly different from each other.
+    # hyprcursor covers native Wayland clients; gtk covers GTK's own lookup
+    # path; x11 covers XWayland clients (e.g. Steam).
+    pointerCursor = {
+      enable = true;
+      package = pkgs.adwaita-icon-theme;
+      name = "Adwaita";
+      gtk.enable = true;
+      hyprcursor.enable = true;
+      x11.enable = true;
     };
 
     # Hyprland session and Quickshell shells (bar, lock screen, launcher).
@@ -99,7 +112,9 @@
     ghostty = {
       enable = true;
       settings = {
-        theme = "catppuccin-mocha";
+        # Ghostty's bundled themes are named after their upstream
+        # iterm2-color-schemes file, which uses title case and a space.
+        theme = "Catppuccin Mocha";
         font-family = "JetBrainsMono Nerd Font";
         window-padding-x = 10;
         window-padding-y = 10;
@@ -120,6 +135,24 @@
         # instead of decoding video on the CPU.
         settings."media.ffmpeg.vaapi.enabled" = true;
       };
+    };
+
+    # Declarative so settings.json and argv.json stay owned by this repo
+    # instead of VS Code's own Settings Sync fighting the same files.
+    vscode = {
+      enable = true;
+      profiles.default.userSettings = {
+        # Hyprland handles window management, so the min/max/close controls
+        # in VS Code's own custom title bar are dead weight (needs a full
+        # restart of VS Code to take effect).
+        "window.titleControlsStyle" = "hidden";
+      };
+      # Under Hyprland (not a desktop environment Electron recognizes),
+      # Chromium's keyring auto-detection falls back to an unencrypted
+      # store, which is how the GitHub sign-in token ended up in plain
+      # text. This forces the same Secret Service backend KeePassXC already
+      # provides (also needs a full VS Code restart).
+      argvSettings."password-store" = "gnome-libsecret";
     };
 
     # home-manager-managed (not just enabled in configuration.nix) so that
@@ -149,6 +182,13 @@
       package = pkgs.papirus-icon-theme;
     };
     colorScheme = "dark";
+
+    # Hyprland draws no server-side title bar, so every CSD button (e.g.
+    # Firefox's close/maximize/minimize, merged into its tab strip) is drawn
+    # by GTK itself following this setting. Empty on both sides of the ":"
+    # means no buttons on either side.
+    gtk3.extraConfig."gtk-decoration-layout" = "";
+    gtk4.extraConfig."gtk-decoration-layout" = "";
   };
 
   xdg = {

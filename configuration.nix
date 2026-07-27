@@ -106,12 +106,15 @@
     };
   };
   # qt5ct/qt6ct (platformTheme) is the standard way to theme Qt apps outside
-  # a running KDE Plasma session; Kvantum (style) is the engine that actually
-  # renders the theme qt5ct/qt6ct picks. home.nix carries the GTK3/4 side.
+  # a running KDE Plasma session. adwaita-dark (style) then renders every Qt
+  # widget - including Dolphin/Kate's context menus - to match the
+  # adw-gtk3-dark GTK theme in home.nix, instead of Qt's own Breeze/Fusion
+  # look. Electron apps (VS Code) draw their own chrome regardless and stay
+  # visually separate either way.
   qt = {
     enable = true;
     platformTheme = "qt5ct";
-    style = "kvantum";
+    style = "adwaita-dark";
   };
 
   # programs.hyprland adds xdg-desktop-portal-hyprland and ships its own
