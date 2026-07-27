@@ -58,10 +58,10 @@
     # Hyprland session and Quickshell shells (bar, lock screen, launcher).
     file = {
       ".config/hypr/hyprland.lua".source = ./dotfiles/hypr/hyprland.lua;
-      ".config/quickshell/shell.qml".source = ./dotfiles/quickshell/bar/shell.qml;
-      # QML resolves same-directory types by filename with no import needed,
-      # but only if the file is actually deployed alongside shell.qml.
-      ".config/quickshell/Notifications.qml".source = ./dotfiles/quickshell/bar/Notifications.qml;
+      # Quickshell treats a shell.qml at the quickshell/ root as *the* default
+      # config and stops looking at named subfolders entirely, so the bar has
+      # to be a named config (-c bar) like lockscreen/launcher, not the root.
+      ".config/quickshell/bar".source = ./dotfiles/quickshell/bar;
       ".config/quickshell/lockscreen".source = ./dotfiles/quickshell/lockscreen;
       ".config/quickshell/launcher".source = ./dotfiles/quickshell/launcher;
       ".config/quickshell/shared".source = ./dotfiles/quickshell/shared;
