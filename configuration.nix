@@ -173,12 +173,22 @@
   };
 
   # programs.hyprland adds xdg-desktop-portal-hyprland and ships its own
-  # hyprland-portals.conf (default = hyprland, then gtk) - but Hyprland isn't
+  # hyprland-portals.conf (default = hyprland, then gtk), but Hyprland isn't
   # GNOME or KDE, so nothing installs that "gtk" fallback automatically
   # (unlike on those desktops, where it comes for free). xdg-desktop-portal-gtk
   # is what actually backs FileChooser and anything else Hyprland's own
   # portal doesn't implement; without it those interfaces have no
-  # implementation at all, not a silent fallback to Dolphin or anything else.
+  # implementation at all, not a silent fallback to yazi or anything else.
+  #
+  # Tried routing FileChooser through yazi instead (xdg-desktop-portal-termfilechooser)
+  # so Open/Save dialogs would match the default file manager (programs.yazi
+  # in home.nix); reverted after checking the actual state of that project:
+  # still C plus shell-script glue, forked several times over (GermainZ's
+  # 2021 original is dead since 2023; the actively-maintained one is a fork
+  # of a fork), and its own recent commit history shows a shell-escaping fix
+  # reverted twice in June 2026. Not worth the fragility for the rarer "pick
+  # a file from inside another app" case - yazi stays the default for
+  # everyday file browsing via hyprland.lua's SUPER+E regardless.
   xdg.portal.extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
 
   # GUI privilege prompts (mounting a drive, some NetworkManager actions)
@@ -191,7 +201,6 @@
       pkgs.git
       # The installed checkout contains LFS-tracked wallpapers.
       pkgs.git-lfs
-      pkgs.nano
       pkgs.quickshell
     ];
     etc = {

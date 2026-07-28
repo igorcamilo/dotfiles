@@ -51,14 +51,12 @@
       pkgs.libva-utils
     ];
 
-    # nano is the plain terminal editor git commit/crontab -e/etc. expect
-    # from $EDITOR; it blocks the caller by default, no extra flag needed.
-    # NIXOS_OZONE_WL: VS Code (kept for manual use, not wired as a default)
-    # is Electron; without this it falls back to XWayland instead of native
-    # Wayland.
+    # EDITOR/VISUAL point at neovim (programs.neovim.defaultEditor below),
+    # for git commit/crontab -e/etc.; it blocks the caller by default, no
+    # extra flag needed. NIXOS_OZONE_WL: VS Code (kept for manual use, not
+    # wired as a default) is Electron; without this it falls back to
+    # XWayland instead of native Wayland.
     sessionVariables = {
-      EDITOR = "nano";
-      VISUAL = "nano";
       NIXOS_OZONE_WL = "1";
     };
 
@@ -130,6 +128,14 @@
         pkgs.zoxide
         pkgs.resvg
       ];
+    };
+
+    # defaultEditor sets EDITOR/VISUAL to nvim (see sessionVariables above).
+    # VS Code stays installed for manual use; this only changes the terminal
+    # default.
+    neovim = {
+      enable = true;
+      defaultEditor = true;
     };
 
     ghostty = {
