@@ -182,9 +182,11 @@ does, since those issues live in KeePassXC's own D-Bus-facing code:
 
 ## Local LLM serving VS Code Copilot instead of the hosted service
 
-**Implemented** (`services.ollama` in `configuration.nix`) - notes below
-kept for context and because the VS Code side still needs the one manual
-step it describes.
+**Implemented** (`services.ollama` in `configuration.nix`, the
+`Ollama.ollama` extension via `programs.vscode` in `home.nix`) - notes below
+kept for context. The one remaining manual step is enabling the pulled
+model in Copilot Chat's model picker itself, which isn't exposed as a
+settings.json key.
 
 **Feasibility: high, and easier than expected for the integration half
 specifically.** VS Code's Copilot Chat model picker briefly had a built-in

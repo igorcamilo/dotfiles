@@ -147,6 +147,22 @@
         # restart of VS Code to take effect).
         "window.titleControlsStyle" = "hidden";
       };
+      # Not in nixpkgs' own curated vscode-extensions set, so fetched
+      # directly from the Marketplace instead - version and hash are pinned
+      # by hand here rather than in flake.lock, since this isn't sourced
+      # from the nixpkgs input at all. Bump both together to update; if it
+      # was ever manually installed first (`code --install-extension`),
+      # remove that copy so there's only one. Wires Ollama into Copilot
+      # Chat's own model picker - see docs/ideas.md and services.ollama in
+      # configuration.nix for the rest of the local-LLM setup.
+      profiles.default.extensions = [
+        (pkgs.vscode-utils.extensionFromVscodeMarketplace {
+          publisher = "Ollama";
+          name = "ollama";
+          version = "0.0.5";
+          sha256 = "dc046ac08674295eaba099edc49bf9d185e1c31b44c73e3dd6535f13fccdb0b7";
+        })
+      ];
       argvSettings = {
         # Under Hyprland (not a desktop environment Electron recognizes),
         # Chromium's keyring auto-detection falls back to an unencrypted
