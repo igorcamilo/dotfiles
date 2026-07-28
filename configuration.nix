@@ -84,6 +84,27 @@
     udisks2.enable = true;
 
     btrfs.autoScrub.enable = true;
+
+    # ROCm 7.2 (2026-03) added official support for this GPU (RDNA4/gfx1201);
+    # rocmOverrideGfx (sets HSA_OVERRIDE_GFX_VERSION) is the fallback if a
+    # future package update ever fails to detect it, not needed by default.
+    # loadModels pulls a coding model straight from its GGUF source on first
+    # activation - see docs/ideas.md for the full model/hardware feasibility
+    # notes. Q3_K_M is the quantization that actually fits this card's 16GB
+    # alongside Hyprland's own VRAM usage (Q4_K_M alone is 18.6GB, already
+    # over budget before the desktop takes anything).
+    #
+    # VS Code integration is the one manual step this can't cover: nixpkgs'
+    # curated vscode-extensions set doesn't package the official Ollama
+    # extension, so install it by hand (`code --install-extension
+    # Ollama.ollama`), then enable the pulled model from Copilot Chat's
+    # model picker - it auto-discovers this service's default
+    # 127.0.0.1:11434 with no settings.json changes needed.
+    ollama = {
+      enable = true;
+      package = pkgs.ollama-rocm;
+      loadModels = [ "hf.co/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q3_K_M" ];
+    };
   };
 
   # Desktop: Hyprland, with Quickshell as the shell layer (bar, wallpaper,

@@ -182,14 +182,20 @@ does, since those issues live in KeePassXC's own D-Bus-facing code:
 
 ## Local LLM serving VS Code Copilot instead of the hosted service
 
+**Implemented** (`services.ollama` in `configuration.nix`) - notes below
+kept for context and because the VS Code side still needs the one manual
+step it describes.
+
 **Feasibility: high, and easier than expected for the integration half
-specifically.** As of VS Code's 2026-06-18 release, Copilot Chat's model
-picker has a built-in "Manage Models" flow with Ollama as a first-party
-provider - no extension, no GitHub sign-in required. So the "integrate
-Copilot" part is now close to: run Ollama, pull a model, pick it from the
-model picker. (Continue.dev, long the standard third-party option for this,
-was acquired and effectively frozen as of 2026-06 - not worth building
-around now that native support exists anyway.)
+specifically.** VS Code's Copilot Chat model picker briefly had a built-in
+Ollama provider needing no extension at all (landed 2026-06-18), but that
+was since deprecated in favor of the official `Ollama.ollama` extension
+(from the Ollama publisher, team-maintained) - still the same native model
+picker, not a separate UI, just an extension away instead of built in. So
+the "integrate Copilot" part is: run Ollama, install that one extension,
+pull a model, pick it from the model picker. (Continue.dev, long the
+standard third-party option for this, was acquired and effectively frozen
+as of 2026-06 - not worth building around regardless.)
 
 The real remaining work is the local-model-serving side:
 
@@ -209,22 +215,24 @@ here - not every model that tops a benchmark is one you can run):
 
 - **Qwen** - `Qwen3-Coder-30B-A3B` is the practical pick for this hardware:
   a mixture-of-experts model, 30B total parameters but only ~3B active per
-  token, so it needs VRAM like a 30B model (a tight but plausible fit in
-  16GB at Q4-ish quantization, possibly wanting a slightly lower quant or a
-  trimmed context window to leave headroom) while running about as fast as
-  a 3B one. If that MoE memory footprint is inconvenient, the previous-gen
-  `Qwen2.5-Coder` line (7B/14B/32B, dense, Apache 2.0) sizes more
-  predictably - 14B at Q4 is a comfortable fit.
+  token, so it needs VRAM like a 30B model while running about as fast as a
+  3B one. Checked actual file sizes rather than estimate: the
+  [unsloth GGUF repo](https://huggingface.co/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/tree/main)'s
+  Q4_K_M is 18.6GB - already over this card's 16GB before Hyprland's own
+  rendering takes any of it. **Q3_K_M (14.7GB) is the one that actually
+  fits**, with Q3_K_S (13.3GB) as a fallback for more headroom. If that MoE
+  memory footprint is inconvenient at all, the previous-gen `Qwen2.5-Coder`
+  line (7B/14B/32B, dense, Apache 2.0) sizes more predictably - 14B at Q4 is
+  a comfortable fit. Now implemented: see `services.ollama` in
+  `configuration.nix`.
   - Qwen publishes this model as two *official* safetensors releases -
     `-Instruct` (BF16, ~62GB, the reference release) and `-Instruct-FP8`
     (~31GB, block-quantized FP8) - neither is meant for Ollama/llama.cpp:
     the FP8 card only lists Transformers/vLLM/SGLang as supported engines,
     and the base card itself points to its GGUF derivatives instead of
     suggesting you run it directly. For this hardware's actual toolchain,
-    go straight to a GGUF quantization, e.g.
-    [unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF](https://huggingface.co/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF)
-    (Q4_K_M/IQ4_XS to start, Q3 if that doesn't leave enough headroom for
-    context) - there's also a pre-packaged community Ollama tag,
+    go straight to a GGUF quantization - there's also a pre-packaged
+    community Ollama tag,
     `renchris/qwen3-coder:30b-gguf-unsloth`, if you'd rather not handle GGUF
     files yourself. The FP8 release itself only became a genuinely good fit
     for this GPU once FP8 MoE support for gfx1201 merged into vLLM mainline
