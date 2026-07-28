@@ -1,9 +1,11 @@
 _:
 
-# After changing anything in System Settings, capture it as Nix and add it
-# here instead of leaving it untracked:
+# Hand-written Plasma settings. rc2nix deliberately drops a few keys as
+# uninteresting state, so anything it blocks has to be declared here or it
+# stays untracked: LookAndFeelPackage, ColorScheme and Theme are the ones that
+# matter, which is why the whole global theme lives in this file.
 #
-#   nix run github:nix-community/plasma-manager#rc2nix
+# Everything else is captured into plasma-generated.nix by config-sync.
 
 {
   programs.plasma = {

@@ -59,6 +59,9 @@
     {
       nixosConfigurations.igor-desktop = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
+        # configuration.nix installs rc2nix from this input, so the tool stays
+        # on the revision in flake.lock.
+        specialArgs = { inherit plasma-manager; };
         modules = sharedModules ++ [ ./hosts/igor-desktop ];
       };
 

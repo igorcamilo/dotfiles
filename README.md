@@ -43,20 +43,51 @@ nixos-generate-config --no-filesystems --root /mnt --dir /tmp/hw
 cp /tmp/hw/hardware-configuration.nix hosts/igor-desktop/hardware-configuration.nix
 ```
 
-Install, then move the checkout into the installed system:
+Install, then move the checkout to its permanent home at
+`~/Developer/nixos-config` and point `/etc/nixos` at it:
 
 ```sh
 nixos-install --root /mnt --flake .#igor-desktop --no-root-passwd
 
-cp -r /tmp/nixos-config /mnt/home/igor/nixos-config
-ln -s /home/igor/nixos-config /mnt/etc/nixos
-nixos-enter --root /mnt -c 'chown -R igor:users /home/igor/nixos-config'
+mkdir -p /mnt/home/igor/Developer
+cp -r /tmp/nixos-config /mnt/home/igor/Developer/nixos-config
+ln -s /home/igor/Developer/nixos-config /mnt/etc/nixos
+nixos-enter --root /mnt -c 'chown -R igor:users /home/igor/Developer'
 nixos-enter --root /mnt -c 'passwd igor'
 reboot
 ```
 
 Nix warns that the Git tree is dirty because two tracked files were edited.
 That is expected; those edits are what gets installed.
+
+## Capture Plasma settings and update
+
+Change what you want in System Settings, then:
+
+```sh
+config-sync
+```
+
+That runs `rc2nix` into `plasma-generated.nix`, updates every flake input, and
+rebuilds. Review and commit both files afterwards:
+
+```sh
+git -C /etc/nixos diff -- plasma-generated.nix flake.lock
+```
+
+`rc2nix` rewrites `plasma-generated.nix` wholesale, so never edit that file.
+Hand-written Plasma settings go in `plasma.nix`, which also has to hold
+anything `rc2nix` deliberately drops as uninteresting state — the global
+theme, colour scheme and Plasma theme among them.
+
+`--update` refreshes every flake input and writes `flake.lock`, which is what
+pins all packages. It runs as your user, and `/etc/nixos` is a symlink into
+your own checkout, so it can write the lock. Note that the lock is updated
+before the build, so a failed build still leaves it changed.
+
+Two things Nix does not pin: the Firefox extensions, which Firefox updates
+itself from addons.mozilla.org, and the llama.cpp model, which is fetched at
+first start and cached under `/var/cache/llama-cpp`.
 
 ## Secure Boot
 

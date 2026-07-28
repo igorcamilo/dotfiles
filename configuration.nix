@@ -1,4 +1,4 @@
-{ pkgs, ... }:
+{ pkgs, plasma-manager, ... }:
 
 {
   networking.networkmanager.enable = true;
@@ -141,6 +141,9 @@
       pkgs.godot
       pkgs.nano
       pkgs.nixfmt
+      # Dumps the live Plasma configuration as Nix; the config-sync alias in
+      # home.nix writes it to plasma-generated.nix.
+      plasma-manager.packages.${pkgs.system}.rc2nix
     ];
 
     # Without this, VS Code and other Electron apps fall back to XWayland.

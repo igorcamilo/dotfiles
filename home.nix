@@ -1,7 +1,10 @@
 _:
 
 {
-  imports = [ ./plasma.nix ];
+  imports = [
+    ./plasma.nix
+    ./plasma-generated.nix
+  ];
 
   home = {
     username = "igor";
@@ -47,7 +50,18 @@ _:
       };
     };
 
-    zsh.enable = true;
+    zsh = {
+      enable = true;
+      # Capture the live Plasma settings, update every flake input, and
+      # rebuild. rc2nix writes to stdout, and via a temporary file so a failed
+      # dump cannot truncate plasma-generated.nix. /etc/nixos is the symlink
+      # to the checkout, so this works wherever the repository was cloned.
+      shellAliases.config-sync = builtins.concatStringsSep " && " [
+        "rc2nix > /tmp/plasma-generated.nix"
+        "mv /tmp/plasma-generated.nix /etc/nixos/plasma-generated.nix"
+        "nh os switch --update"
+      ];
+    };
 
     # No package = null: this module has no such option, so Starship's binary
     # comes from the user profile rather than environment.systemPackages.

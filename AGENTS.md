@@ -16,7 +16,9 @@ vendor-specific per-agent files or nested-file discovery.
 - `configuration.nix`: machine-wide configuration, and every installed
   package.
 - `home.nix`: per-user configuration (Home Manager).
-- `plasma.nix`: per-user Plasma configuration (plasma-manager).
+- `plasma.nix`: hand-written Plasma configuration (plasma-manager).
+- `plasma-generated.nix`: Plasma configuration captured by `rc2nix`. Never
+  edit it; the `config-sync` alias overwrites the whole file.
 - `hosts/<name>/`: hostname, install disk, and generated hardware scan.
 - `modules/`: shared storage and boot concerns.
 
@@ -26,16 +28,17 @@ vendor-specific per-agent files or nested-file discovery.
    installed system: no CI checks, test derivations, formatter outputs,
    development shells, or test-only workarounds.
 2. Track as much as the tooling allows. If a setting can be expressed as a
-   NixOS, Home Manager, or plasma-manager option, declare it here rather than
-   leaving it to a GUI, a mutable dotfile, or a vendor's own sync service.
-   After changing anything in Plasma's System Settings, capture it with
-   `nix run github:nix-community/plasma-manager#rc2nix` and commit the result.
-   When an option genuinely does not exist, say so explicitly instead of
-   quietly leaving the setting untracked.
+   NixOS or Home Manager option, declare it there rather than leaving it to a
+   GUI, a mutable dotfile, or a vendor's own sync service. Plasma settings are
+   captured by `rc2nix` into `plasma-generated.nix`; the keys it deliberately
+   drops, such as `LookAndFeelPackage`, `ColorScheme` and `Theme`, have to be
+   declared by hand in `plasma.nix` or they stay untracked. When an option
+   genuinely does not exist, say so explicitly instead of quietly leaving a
+   setting untracked.
 3. Packages are installed system-wide in `configuration.nix`; their
-   configuration is per-user in `home.nix` and `plasma.nix`. Where a Home
-   Manager module would install a second copy of a system package, set
-   `package = null` so it only writes configuration.
+   configuration is per-user in `home.nix`. Where a Home Manager module would
+   install a second copy of a system package, set `package = null` so it only
+   writes configuration.
 4. Optimize for a first-time reader. Prefer direct declarations and
    descriptive names over abstractions. Comment the reasons and the safety
    constraints, not the syntax.
