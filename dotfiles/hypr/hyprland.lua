@@ -1,6 +1,6 @@
-local mainMod     = "SUPER"
-local terminal     = "ghostty"
-local fileManager  = "dolphin"
+local mainMod = "SUPER"
+local terminal = "ghostty"
+local fileManager = "dolphin"
 
 ------------
 -- MONITOR --
@@ -14,11 +14,11 @@ local fileManager  = "dolphin"
 -- desktop at a fixed 165Hz, where the flicker is most noticeable. Drop to
 -- vrr=0 or to 144Hz if fullscreen content still flickers.
 hl.monitor({
-    output   = "",
-    mode     = "3440x1440@165",
+    output = "",
+    mode = "3440x1440@165",
     position = "auto",
-    scale    = "auto",
-    vrr      = 2,
+    scale = "auto",
+    vrr = 2,
 })
 
 -----------
@@ -82,10 +82,26 @@ hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(), { mouse = true })
 hl.bind(mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
 
 -- Volume and mic mute
-hl.bind("XF86AudioRaiseVolume", hl.dsp.exec_cmd("wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+"), { locked = true, repeating = true })
-hl.bind("XF86AudioLowerVolume", hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"), { locked = true, repeating = true })
-hl.bind("XF86AudioMute", hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"), { locked = true, repeating = true })
-hl.bind("XF86AudioMicMute", hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"), { locked = true, repeating = true })
+hl.bind(
+    "XF86AudioRaiseVolume",
+    hl.dsp.exec_cmd("wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+"),
+    { locked = true, repeating = true }
+)
+hl.bind(
+    "XF86AudioLowerVolume",
+    hl.dsp.exec_cmd("wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-"),
+    { locked = true, repeating = true }
+)
+hl.bind(
+    "XF86AudioMute",
+    hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"),
+    { locked = true, repeating = true }
+)
+hl.bind(
+    "XF86AudioMicMute",
+    hl.dsp.exec_cmd("wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"),
+    { locked = true, repeating = true }
+)
 
 -- Screen brightness; laptop panels only, likely a no-op on desktop monitors
 hl.bind("XF86MonBrightnessUp", hl.dsp.exec_cmd("brightnessctl -e4 -n2 set 5%+"), { locked = true, repeating = true })

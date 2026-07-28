@@ -153,6 +153,14 @@ check_qml() {
   rm -f "$log"
 }
 
+check_lua_format() {
+  stylua --check dotfiles/hypr/hyprland.lua dotfiles/hypr/greeter.lua
+}
+
+check_lua_lint() {
+  selene dotfiles/hypr/hyprland.lua dotfiles/hypr/greeter.lua
+}
+
 run_check "Nix formatting" check_nix_format
 run_check "Unused Nix code" check_dead_nix
 run_check "Nix static analysis" check_nix_static_analysis
@@ -161,6 +169,8 @@ run_check "Bash syntax" check_bash_syntax
 run_check "Installer tests" check_installer
 run_check "Current-tree secret scan" check_current_tree_for_secrets
 run_check "QML lint" check_qml
+run_check "Lua formatting" check_lua_format
+run_check "Lua lint" check_lua_lint
 
 if ((failures > 0)); then
   printf '\n%d repository check(s) failed.\n' "$failures" >&2

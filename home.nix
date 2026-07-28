@@ -47,7 +47,6 @@
       pkgs.wireplumber
       pkgs.ffmpeg
       pkgs.libva-utils
-      pkgs.vscode
     ];
 
     # nano is the plain terminal editor git commit/crontab -e/etc. expect
@@ -59,6 +58,20 @@
       EDITOR = "nano";
       VISUAL = "nano";
       NIXOS_OZONE_WL = "1";
+    };
+
+    # Without this, GTK/Qt apps fall back to whatever cursor their own
+    # toolkit bundles, and Electron apps like VS Code fall back to
+    # Chromium's built-in cursor - all visibly different from each other.
+    # hyprcursor covers native Wayland clients; gtk covers GTK's own lookup
+    # path; x11 covers XWayland clients (e.g. Steam).
+    pointerCursor = {
+      enable = true;
+      package = pkgs.adwaita-icon-theme;
+      name = "Adwaita";
+      gtk.enable = true;
+      hyprcursor.enable = true;
+      x11.enable = true;
     };
 
     # Hyprland session and Quickshell shells (bar, lock screen, launcher).
@@ -99,7 +112,9 @@
     ghostty = {
       enable = true;
       settings = {
-        theme = "catppuccin-mocha";
+        # Ghostty's bundled themes are named after their upstream
+        # iterm2-color-schemes file, which uses title case and a space.
+        theme = "Catppuccin Mocha";
         font-family = "JetBrainsMono Nerd Font";
         window-padding-x = 10;
         window-padding-y = 10;
@@ -119,6 +134,59 @@
         # in configuration.nix; this just tells Firefox to actually use it
         # instead of decoding video on the CPU.
         settings."media.ffmpeg.vaapi.enabled" = true;
+      };
+    };
+
+    # Declarative so settings.json and argv.json stay owned by this repo
+    # instead of VS Code's own Settings Sync fighting the same files.
+    vscode = {
+      enable = true;
+      profiles.default.userSettings = {
+        "diffEditor.experimental.showMoves" = true;
+        "diffEditor.renderSideBySide" = false;
+        "git.confirmSync" = false;
+        "git.inputValidation" = true;
+        "github.copilot.chat.commitMessageGeneration.instructions" = [
+          {
+            "text" = "Limit header to 50 characters max and body lines to 72 characters max.";
+          }
+        ];
+        # Hyprland handles window management, so the min/max/close controls
+        # in VS Code's own custom title bar are dead weight (needs a full
+        # restart of VS Code to take effect).
+        "window.controlsStyle" = "hidden";
+      };
+      # Not in nixpkgs' own curated vscode-extensions set, so fetched
+      # directly from the Marketplace instead - version and hash are pinned
+      # by hand here rather than in flake.lock, since this isn't sourced
+      # from the nixpkgs input at all. Bump both together to update; if it
+      # was ever manually installed first (`code --install-extension`),
+      # remove that copy so there's only one. Wires Ollama into Copilot
+      # Chat's own model picker - see docs/ideas.md and services.ollama in
+      # configuration.nix for the rest of the local-LLM setup.
+      profiles.default.extensions = [
+        (pkgs.vscode-utils.extensionFromVscodeMarketplace {
+          publisher = "Ollama";
+          name = "ollama";
+          version = "0.0.5";
+          sha256 = "dc046ac08674295eaba099edc49bf9d185e1c31b44c73e3dd6535f13fccdb0b7";
+        })
+      ];
+      argvSettings = {
+        # Under Hyprland (not a desktop environment Electron recognizes),
+        # Chromium's keyring auto-detection falls back to an unencrypted
+        # store, which is how the GitHub sign-in token ended up in plain
+        # text. This forces the same Secret Service backend KeePassXC
+        # already provides (also needs a full VS Code restart).
+        "password-store" = "gnome-libsecret";
+        # VS Code writes both of these into argv.json itself on first run.
+        # Copied verbatim from igor-desktop's pre-Nix argv.json so VS Code
+        # has no missing fields to try to write back into what is now a
+        # read-only Nix-store symlink - crash-reporter-id in particular is
+        # only an install-correlation id, not a secret, but VS Code's own
+        # comment asks not to change it once assigned.
+        "enable-crash-reporter" = true;
+        "crash-reporter-id" = "6eeb860a-4e8d-482b-bae9-b6fd7c3f17dd";
       };
     };
 
@@ -149,6 +217,13 @@
       package = pkgs.papirus-icon-theme;
     };
     colorScheme = "dark";
+
+    # Hyprland draws no server-side title bar, so every CSD button (e.g.
+    # Firefox's close/maximize/minimize, merged into its tab strip) is drawn
+    # by GTK itself following this setting. Empty on both sides of the ":"
+    # means no buttons on either side.
+    gtk3.extraConfig."gtk-decoration-layout" = "";
+    gtk4.extraConfig."gtk-decoration-layout" = "";
   };
 
   xdg = {

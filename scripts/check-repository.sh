@@ -25,6 +25,8 @@ exec nix shell \
   nixpkgs#nixfmt \
   nixpkgs#qt6.qtdeclarative \
   nixpkgs#quickshell \
+  nixpkgs#selene \
   nixpkgs#shellcheck \
   nixpkgs#statix \
+  nixpkgs#stylua \
   --command bash scripts/check.sh

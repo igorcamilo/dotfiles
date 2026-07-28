@@ -20,3 +20,12 @@ pre-commit:
     statix:
       glob: "*.nix"
       run: statix check -i "$(cat scripts/generated-nix-files.glob)" .
+    stylua:
+      glob: "*.lua"
+      run: stylua {staged_files}
+      stage_fixed: true
+    # selene reads std = "hyprland-lua" from selene.toml, which points at
+    # hyprland-lua.yml (declares the hl global these configs never `require`).
+    selene:
+      glob: "*.lua"
+      run: selene {staged_files}
