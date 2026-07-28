@@ -142,6 +142,8 @@
     vscode = {
       enable = true;
       profiles.default.userSettings = {
+        "diffEditor.experimental.showMoves" = true;
+        "diffEditor.renderSideBySide" = false;
         "git.confirmSync" = false;
         "git.inputValidation" = true;
         "github.copilot.chat.commitMessageGeneration.instructions" = [
