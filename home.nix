@@ -142,10 +142,17 @@
     vscode = {
       enable = true;
       profiles.default.userSettings = {
+        "git.confirmSync" = false;
+        "git.inputValidation" = true;
+        "github.copilot.chat.commitMessageGeneration.instructions" = [
+          {
+            "text" = "Limit header to 50 characters max and body lines to 72 characters max.";
+          }
+        ];
         # Hyprland handles window management, so the min/max/close controls
         # in VS Code's own custom title bar are dead weight (needs a full
         # restart of VS Code to take effect).
-        "window.titleControlsStyle" = "hidden";
+        "window.controlsStyle" = "hidden";
       };
       # Not in nixpkgs' own curated vscode-extensions set, so fetched
       # directly from the Marketplace instead - version and hash are pinned
