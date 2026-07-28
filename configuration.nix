@@ -38,7 +38,7 @@
 
   zramSwap.enable = true;
 
-  # AMD GPU: Mesa provides RADV (Vulkan) and RadeonSI (OpenGL) for Hyprland's
+  # AMD GPU: Mesa provides RADV (Vulkan) and RadeonSI (OpenGL) for KWin's
   # rendering, and the redistributable firmware carries the microcode the
   # amdgpu kernel driver loads for display and video decode/encode.
   hardware = {
@@ -70,22 +70,21 @@
 
     fwupd.enable = true;
 
-    # agreety, greetd's own bundled text greeter, replaces a custom
-    # Hyprland+Quickshell greeter session while Hyprland itself is still
-    # being brought up on real hardware. On successful login it hands off
-    # to the user's Hyprland session below via start-hyprland, the same
-    # target the custom greeter used.
-    greetd = {
-      enable = true;
-      useTextGreeter = true;
-      settings.default_session.command = "${pkgs.greetd}/bin/agreety --cmd start-hyprland";
-    };
+    desktopManager.plasma6.enable = true;
+    displayManager.sddm.enable = true;
 
     udisks2.enable = true;
 
     btrfs.autoScrub.enable = true;
 
-    # ROCm 7.2 (2026-03) added official support for this GPU (RDNA4/gfx1201).
+    # ROCm 7.2 (2026-03) added official support for this GPU (RDNA4/gfx1201);
+    # rocmOverrideGfx (sets HSA_OVERRIDE_GFX_VERSION) is the fallback if a
+    # future package update ever fails to detect it, not needed by default.
+    # loadModels pulls a coding model straight from its GGUF source on first
+    # activation - see docs/ideas.md for the full model/hardware feasibility
+    # notes. Q3_K_M is the quantization that actually fits this card's 16GB
+    # alongside the desktop's own VRAM usage (Q4_K_M alone is 18.6GB, already
+    # over budget before the desktop takes anything).
     #
     # Runs Qwen3-Coder-30B-A3B (a mixture-of-experts model: 30B total
     # parameters, ~3B active per token - see docs/ideas.md for the full
@@ -141,11 +140,12 @@
   # through.
   systemd.services.llama-cpp.serviceConfig.TimeoutStartSec = "30min";
 
-  # Desktop: Hyprland, with Quickshell as the shell layer (bar, wallpaper,
-  # lock screen). Wallpaper is drawn by Quickshell itself (a background
-  # layer-shell surface), so no separate wallpaper daemon is installed.
+  # Desktop: Plasma 6, the NixOS-documented default KDE install
+  # (services.desktopManager.plasma6 + services.displayManager.sddm). It
+  # brings its own Qt/GTK theming (Breeze + kde-gtk-config), portals
+  # (xdg-desktop-portal-kde + kwallet), and polkit agent
+  # (polkit-kde-agent-1), so none of those need declaring by hand here.
   programs = {
-    hyprland.enable = true;
     dconf.enable = true;
     # Registers zsh as a valid login shell; users.users.igor.shell above
     # is what makes it igor's actual default.
@@ -160,54 +160,13 @@
       flake = "/etc/nixos";
     };
   };
-  # adwaita-dark (a Qt-native reimplementation of the look) covered general
-  # widget colors and menus, but not the separate Base/View palette role list
-  # and icon views use (Dolphin's file grid stayed white). gtk2 as both style
-  # and platformTheme instead proxies GTK's own rendering directly, so it
-  # inherits the adw-gtk3-dark GTK theme in home.nix - already configured,
-  # already correct for Firefox - role for role instead of approximating it.
-  qt = {
-    enable = true;
-    platformTheme = "gtk2";
-    style = "gtk2";
-  };
 
-  # programs.hyprland adds xdg-desktop-portal-hyprland and ships its own
-  # hyprland-portals.conf (default = hyprland, then gtk), but Hyprland isn't
-  # GNOME or KDE, so nothing installs that "gtk" fallback automatically
-  # (unlike on those desktops, where it comes for free). xdg-desktop-portal-gtk
-  # is what actually backs FileChooser and anything else Hyprland's own
-  # portal doesn't implement; without it those interfaces have no
-  # implementation at all, not a silent fallback to yazi or anything else.
-  #
-  # Tried routing FileChooser through yazi instead (xdg-desktop-portal-termfilechooser)
-  # so Open/Save dialogs would match the default file manager (programs.yazi
-  # in home.nix); reverted after checking the actual state of that project:
-  # still C plus shell-script glue, forked several times over (GermainZ's
-  # 2021 original is dead since 2023; the actively-maintained one is a fork
-  # of a fork), and its own recent commit history shows a shell-escaping fix
-  # reverted twice in June 2026. Not worth the fragility for the rarer "pick
-  # a file from inside another app" case - yazi stays the default for
-  # everyday file browsing via hyprland.lua's SUPER+E regardless.
-  xdg.portal.extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
-
-  # GUI privilege prompts (mounting a drive, some NetworkManager actions)
-  # need an authentication agent; home.nix installs Hyprland's own
-  # (hyprpolkitagent) and hyprland.lua starts it.
-  security.polkit.enable = true;
-
-  environment = {
-    systemPackages = [
-      pkgs.git
-      # The installed checkout contains LFS-tracked wallpapers.
-      pkgs.git-lfs
-      pkgs.quickshell
-    ];
-    etc = {
-      # Also read directly by the lock screen; see dotfiles/quickshell/lockscreen.
-      "wallpaper.jpg".source = ./wallpapers/weic2216b.jpg;
-    };
-  };
+  environment.systemPackages = [
+    pkgs.git
+    # The installed checkout contains LFS-tracked wallpapers.
+    pkgs.git-lfs
+    pkgs.nano
+  ];
 
   # JetBrainsMono Nerd Font: patched with the icon glyphs Starship's prompt
   # and Ghostty's own UI expect (see home.nix). Installed system-wide, not

@@ -1,52 +1,18 @@
 { pkgs, ... }:
 
 {
-  # Starting an already-active oneshot service is idempotent, which closes the
-  # race that a pgrep-based lock guard would leave between concurrent callers.
-  systemd.user.services.quickshell-lock = {
-    Unit.Description = "Quickshell Wayland session lock";
-    Service = {
-      Type = "simple";
-      ExecStart = "${pkgs.quickshell}/bin/quickshell -c lockscreen";
-    };
-  };
-
-  systemd.user.services.quickshell-launcher = {
-    Unit.Description = "Quickshell app launcher";
-    Service = {
-      Type = "simple";
-      ExecStart = "${pkgs.quickshell}/bin/quickshell -c launcher";
-      # The launcher calls Qt.quit() right after launching an app, so it can
-      # close itself immediately; systemd's default KillMode=control-group
-      # would then kill that just-launched app too, since it shares this
-      # service's cgroup. KillMode=process only kills the tracked quickshell
-      # process, letting whatever it launched keep running.
-      KillMode = "process";
-    };
-  };
-
   home = {
     username = "igor";
     homeDirectory = "/home/igor";
     stateVersion = "26.05";
 
-    # hyprpolkitagent: GUI polkit agent, started from hyprland.lua. dolphin:
-    # kept installed as a GUI fallback now that yazi (programs.yazi below) is
-    # the file manager actually bound in hyprland.lua, with ffmpegthumbs for
-    # its video thumbnails. playerctl and wireplumber (wpctl): back the
-    # media-key binds in hyprland.lua. ffmpeg: the system H.264/AAC decoder
+    # Dolphin, KWallet's polkit agent, Kate/KWrite, etc. all come from
+    # services.desktopManager.plasma6 in configuration.nix, so only genuinely
+    # extra packages belong here. ffmpeg: the system H.264/AAC decoder
     # Firefox loads at run time (it can't bundle those codecs itself; see the
-    # firefox profile below), and yazi's own video-preview dependency.
-    # libva-utils: run `vainfo` to confirm GPU video decode is active.
+    # firefox profile below). libva-utils: run `vainfo` to confirm GPU video
+    # decode is active.
     packages = [
-      pkgs.hyprpolkitagent
-      pkgs.kdePackages.dolphin
-      pkgs.kdePackages.ffmpegthumbs
-      # Kate and KWrite ship as one package upstream; kwrite below is the
-      # lightweight one, kate the fuller editor, same binary set.
-      pkgs.kdePackages.kate
-      pkgs.playerctl
-      pkgs.wireplumber
       pkgs.ffmpeg
       pkgs.libva-utils
     ];
@@ -60,36 +26,10 @@
       NIXOS_OZONE_WL = "1";
     };
 
-    # Without this, GTK/Qt apps fall back to whatever cursor their own
-    # toolkit bundles, and Electron apps like VS Code fall back to
-    # Chromium's built-in cursor - all visibly different from each other.
-    # hyprcursor covers native Wayland clients; gtk covers GTK's own lookup
-    # path; x11 covers XWayland clients (e.g. Steam).
-    pointerCursor = {
-      enable = true;
-      package = pkgs.adwaita-icon-theme;
-      name = "Adwaita";
-      gtk.enable = true;
-      hyprcursor.enable = true;
-      x11.enable = true;
-    };
-
-    # Hyprland session and Quickshell shells (bar, lock screen, launcher).
-    file = {
-      ".config/hypr/hyprland.lua".source = ./dotfiles/hypr/hyprland.lua;
-      # Quickshell treats a shell.qml at the quickshell/ root as *the* default
-      # config and stops looking at named subfolders entirely, so the bar has
-      # to be a named config (-c bar) like lockscreen/launcher, not the root.
-      ".config/quickshell/bar".source = ./dotfiles/quickshell/bar;
-      # Quickshell also confines each named config's imports to its own root,
-      # and home-manager can't map a second file/directory nested inside a
-      # path that's already one whole-directory symlink (fails at build time:
-      # "Error installing file ... outside $HOME"), so lockscreen's shared/
-      # components live physically inside dotfiles/quickshell/lockscreen/
-      # rather than being deployed separately.
-      ".config/quickshell/lockscreen".source = ./dotfiles/quickshell/lockscreen;
-      ".config/quickshell/launcher".source = ./dotfiles/quickshell/launcher;
-    };
+    # Plasma ships and applies its own Breeze cursor theme (see
+    # xdg.icons.fallbackCursorThemes in the plasma6 module) across native
+    # Wayland, GTK, and XWayland clients alike, so no cursor theme needs
+    # declaring here.
   };
 
   programs = {
@@ -185,17 +125,17 @@
             "text" = "Limit header to 50 characters max and body lines to 72 characters max.";
           }
         ];
-        # Hyprland handles window management, so the min/max/close controls
-        # in VS Code's own custom title bar are dead weight (needs a full
-        # restart of VS Code to take effect).
+        # KWin draws a native title bar for VS Code's window, so the
+        # min/max/close controls in VS Code's own custom title bar are dead
+        # weight (needs a full restart of VS Code to take effect).
         "window.controlsStyle" = "hidden";
       };
       argvSettings = {
-        # Under Hyprland (not a desktop environment Electron recognizes),
-        # Chromium's keyring auto-detection falls back to an unencrypted
-        # store, which is how the GitHub sign-in token ended up in plain
-        # text. This forces the same Secret Service backend KeePassXC
-        # already provides (also needs a full VS Code restart).
+        # Plasma is a desktop environment Electron recognizes, so without
+        # this Chromium's keyring auto-detection would target KWallet
+        # instead of the Secret Service backend KeePassXC provides. This
+        # forces gnome-libsecret so tokens land in KeePassXC as intended
+        # (also needs a full VS Code restart).
         "password-store" = "gnome-libsecret";
         # VS Code writes both of these into argv.json itself on first run.
         # Copied verbatim from igor-desktop's pre-Nix argv.json so VS Code
@@ -235,13 +175,6 @@
       package = pkgs.papirus-icon-theme;
     };
     colorScheme = "dark";
-
-    # Hyprland draws no server-side title bar, so every CSD button (e.g.
-    # Firefox's close/maximize/minimize, merged into its tab strip) is drawn
-    # by GTK itself following this setting. Empty on both sides of the ":"
-    # means no buttons on either side.
-    gtk3.extraConfig."gtk-decoration-layout" = "";
-    gtk4.extraConfig."gtk-decoration-layout" = "";
   };
 
   xdg = {
@@ -254,30 +187,6 @@
     mimeApps = {
       enable = true;
       defaultApplications."text/plain" = [ "kwrite.desktop" ];
-    };
-  };
-
-  # Auto-lock on idle: lock at 5 minutes, blank the display 30 seconds
-  # after that, lock again before suspend regardless of idle time.
-  services.hypridle = {
-    enable = true;
-    settings = {
-      general = {
-        lock_cmd = "systemctl --user start quickshell-lock.service";
-        before_sleep_cmd = "systemctl --user start quickshell-lock.service";
-        after_sleep_cmd = "hyprctl dispatch dpms on";
-      };
-      listener = [
-        {
-          timeout = 300;
-          on-timeout = "systemctl --user start quickshell-lock.service";
-        }
-        {
-          timeout = 330;
-          on-timeout = "hyprctl dispatch dpms off";
-          on-resume = "hyprctl dispatch dpms on";
-        }
-      ];
     };
   };
 }
