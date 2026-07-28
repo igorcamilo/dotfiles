@@ -71,7 +71,9 @@ vendor-specific per-agent files or nested-file discovery.
 - `install.sh`: destructive installation workflow.
 - `scripts/`: non-destructive development and CI validation.
 - `tests/`: installer and QML validation fixtures.
-- `docs/`: installation, architecture, recovery, and Secure Boot procedures.
+- `docs/`: installation, architecture, recovery, and Secure Boot procedures,
+  plus speculative project ideas that are not part of the machine's
+  description.
 
 ## Safety and validation
 

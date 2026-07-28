@@ -365,7 +365,7 @@ and full Git history.
 | `.github/workflows/ci.yml` | Native system, repository quality, and history |
 | `lefthook.yml` | Local pre-commit secret, Nix, and Lua checks |
 | `.gitignore` | Excludes local key files and Nix build links |
-| `docs/` | Procedures and this explanation |
+| `docs/` | Procedures, this explanation, and speculative project ideas |
 
 ## Common change recipes
 

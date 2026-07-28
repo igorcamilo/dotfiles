@@ -105,17 +105,16 @@
       flake = "/etc/nixos";
     };
   };
-  # platformTheme and style are independent: style (adwaita-dark) renders
-  # every Qt widget - including Dolphin/Kate's context menus - while
-  # platformTheme supplies the actual palette (background/text colors).
-  # qt5ct/qt6ct would need its own separate, manually-configured palette (its
-  # default otherwise leaves some text unreadable against adwaita-dark); gtk2
-  # instead reads the palette straight from the adw-gtk3-dark GTK theme in
-  # home.nix that's already configured and already correct for Firefox.
+  # adwaita-dark (a Qt-native reimplementation of the look) covered general
+  # widget colors and menus, but not the separate Base/View palette role list
+  # and icon views use (Dolphin's file grid stayed white). gtk2 as both style
+  # and platformTheme instead proxies GTK's own rendering directly, so it
+  # inherits the adw-gtk3-dark GTK theme in home.nix - already configured,
+  # already correct for Firefox - role for role instead of approximating it.
   qt = {
     enable = true;
     platformTheme = "gtk2";
-    style = "adwaita-dark";
+    style = "gtk2";
   };
 
   # programs.hyprland adds xdg-desktop-portal-hyprland and ships its own
