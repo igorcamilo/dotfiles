@@ -182,18 +182,19 @@ does, since those issues live in KeePassXC's own D-Bus-facing code:
 
 ## Local LLM serving VS Code Copilot instead of the hosted service
 
-**Implemented** (`systemd.services.llama-cpp` in `configuration.nix`) -
-notes below kept for context on model/hardware choice. VS Code integration
-is now Copilot Chat's own built-in "Custom Endpoint" model picker entry
-pointed at llama-server's OpenAI-compatible API, not an extension - see the
-comment above that service definition for exact steps.
+**Implemented** (`services.llama-cpp` in `configuration.nix`, the built-in
+nixpkgs module - not a hand-rolled systemd unit) - notes below kept for
+context on model/hardware choice. VS Code integration is now Copilot Chat's
+own built-in "Custom Endpoint" model picker entry pointed at llama-server's
+OpenAI-compatible API, not an extension - see the comment above that
+service definition for exact steps.
 
 Originally implemented with `services.ollama` + the `Ollama.ollama`
 extension; dropped both because the extension only ever exposed the model
 to Copilot Chat's Ask mode, never Agent mode (no tool-calling support), and
 Ollama's own offload logic isn't MoE-aware, which mattered once "more
 context on this hardware" became the actual goal - see llama-cpp's own
-comment in `configuration.nix` for the `--n-cpu-moe` reasoning.
+comment in `configuration.nix` for the `n-cpu-moe` reasoning.
 
 **Feasibility: high, and easier than expected for the integration half
 specifically.** VS Code's Copilot Chat model picker briefly had a built-in
@@ -232,7 +233,7 @@ here - not every model that tops a benchmark is one you can run):
   fits**, with Q3_K_S (13.3GB) as a fallback for more headroom. If that MoE
   memory footprint is inconvenient at all, the previous-gen `Qwen2.5-Coder`
   line (7B/14B/32B, dense, Apache 2.0) sizes more predictably - 14B at Q4 is
-  a comfortable fit. Now implemented: see `services.ollama` in
+  a comfortable fit. Now implemented: see `services.llama-cpp` in
   `configuration.nix`.
   - Qwen publishes this model as two *official* safetensors releases -
     `-Instruct` (BF16, ~62GB, the reference release) and `-Instruct-FP8`
@@ -294,21 +295,23 @@ quantizations if you'd rather not hunt.
   same 2026 updates, via "Other Models" → custom endpoint at
   `http://localhost:1234/v1` (there's also a dedicated "LM Studio for
   Copilot Chat" extension for tighter integration).
-- **llama.cpp directly** - `pkgs.llama-cpp` (nixpkgs build flags:
-  `rocmSupport`, following the global `nixpkgs.config.rocmSupport`; `vulkanSupport`,
-  off by default, needs `pkgs.llama-cpp.override { vulkanSupport = true; }`).
-  Worth naming specifically because current tool comparisons rate llama.cpp
-  as having the best ROCm support of this group - both Ollama and LM Studio
-  wrap it internally anyway, so running its own `llama-server` (which also
-  speaks the OpenAI-compatible API VS Code's custom-endpoint option expects)
-  trades a rawer, CLI-only experience for the most direct path to whatever
-  ROCm/Vulkan support actually exists for gfx1201 at any given time.
+- **llama.cpp directly** - nixpkgs ships separate package variants rather
+  than one build-flag-toggled `pkgs.llama-cpp`: `pkgs.llama-cpp-rocm` for
+  ROCm, `pkgs.llama-cpp-vulkan` for Vulkan. Worth naming specifically
+  because current tool comparisons rate llama.cpp as having the best ROCm
+  support of this group - both Ollama and LM Studio wrap it internally
+  anyway, so running its own `llama-server` (which also speaks the
+  OpenAI-compatible API VS Code's custom-endpoint option expects) trades a
+  rawer, CLI-only experience for the most direct path to whatever
+  ROCm/Vulkan support actually exists for gfx1201 at any given time. Now
+  implemented: see `services.llama-cpp` in `configuration.nix`.
 - **What to skip:** vLLM, SGLang, and TensorRT-LLM are built for
   multi-user serving throughput - no benefit over the above for a single
   desktop.
 
-**LLM help: high** for the NixOS packaging side (`services.ollama`, picking
-the right package variant/GPU flags) - directly in this repo's own idiom.
+**LLM help: high** for the NixOS packaging side (`services.llama-cpp`,
+picking the right package variant/GPU flags) - directly in this repo's own
+idiom.
 
 **Where it'd plug in:** `services.ollama` in `configuration.nix`, fully
 declarative like everything else here.
