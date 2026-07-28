@@ -41,11 +41,8 @@
             useGlobalPkgs = true;
             useUserPackages = true;
             users.igor = import ./home.nix;
-            # Activation otherwise aborts the first time a home.file/programs.*
-            # target already exists as a real, non-Home-Manager-owned file
-            # (e.g. VS Code's own settings.json and argv.json, written before
-            # home.nix declared them). This renames the collision aside
-            # (settings.json -> settings.json.backup) instead of failing.
+            # Renames a pre-existing unmanaged file aside instead of aborting
+            # activation, e.g. VS Code's own settings.json on first switch.
             backupFileExtension = "backup";
           };
         }
@@ -57,9 +54,8 @@
         modules = sharedModules ++ [ ./hosts/igor-desktop ];
       };
 
-      # Partitioning during installation runs this Disko rather than a
-      # separately fetched one, so the command-line tool always matches the
-      # Disko module revision recorded in flake.lock.
+      # Keeps the Disko command-line tool on the revision in flake.lock rather
+      # than whatever a separate fetch would pull.
       apps.x86_64-linux.disko = {
         type = "app";
         program = "${disko.packages.x86_64-linux.default}/bin/disko";

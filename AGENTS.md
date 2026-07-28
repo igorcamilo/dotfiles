@@ -9,6 +9,7 @@ vendor-specific per-agent files or nested-file discovery.
 
 ## Layout
 
+- `README.md`: installation, Secure Boot, and TPM unlock procedures.
 - `flake.nix`: locked inputs, shared module composition, one entry in
   `nixosConfigurations` per machine, and the Disko app used to partition a
   disk during installation.

@@ -7,8 +7,7 @@ _:
       theme = "bgrt";
     };
 
-    # Keep routine boot messages behind the splash. Press Escape during boot
-    # to switch between Plymouth and the text details.
+    # Press Escape during boot to switch between the splash and the messages.
     consoleLogLevel = 3;
     initrd.verbose = false;
     kernelParams = [
@@ -18,8 +17,7 @@ _:
     ];
   };
 
-  # Loads the amdgpu driver during the initrd, before Plymouth starts, so the
-  # splash renders at its final resolution instead of flickering when the
-  # driver takes over later in boot.
+  # Loads amdgpu before Plymouth starts, so the splash renders at its final
+  # resolution instead of flickering when the driver takes over.
   hardware.amdgpu.initrd.enable = true;
 }

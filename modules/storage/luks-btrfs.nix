@@ -4,8 +4,6 @@ let
   cfg = config.nixos-config.storage;
 in
 {
-  # The one fact this layout cannot know by itself: which disk it belongs to.
-  # Every host that imports this file supplies its own.
   options.nixos-config.storage.installDisk = lib.mkOption {
     type = lib.types.str;
     example = "/dev/disk/by-id/nvme-example";
@@ -21,9 +19,9 @@ in
         ESP = {
           priority = 1;
           name = "ESP";
-          # Lanzaboote keeps a full signed UKI (kernel + initrd, amdgpu firmware
-          # included) per generation, times configurationLimit generations kept
-          # in modules/boot/secure-boot.nix; 1G leaves too little headroom.
+          # Lanzaboote keeps a full signed UKI per generation, times
+          # configurationLimit in modules/boot/secure-boot.nix. 1G is too
+          # little.
           size = "2G";
           type = "EF00";
           content = {
