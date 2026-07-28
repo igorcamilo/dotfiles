@@ -173,19 +173,13 @@
   };
 
   # programs.hyprland adds xdg-desktop-portal-hyprland and ships its own
-  # hyprland-portals.conf (default = hyprland, then gtk). That file lives in
-  # the package's own store path, so the override below at a higher-priority
-  # /etc path is needed to route FileChooser to Dolphin's KDE portal instead.
-  xdg.portal = {
-    extraPortals = [ pkgs.kdePackages.xdg-desktop-portal-kde ];
-    config.hyprland = {
-      default = [
-        "hyprland"
-        "gtk"
-      ];
-      "org.freedesktop.impl.portal.FileChooser" = [ "kde" ];
-    };
-  };
+  # hyprland-portals.conf (default = hyprland, then gtk) - but Hyprland isn't
+  # GNOME or KDE, so nothing installs that "gtk" fallback automatically
+  # (unlike on those desktops, where it comes for free). xdg-desktop-portal-gtk
+  # is what actually backs FileChooser and anything else Hyprland's own
+  # portal doesn't implement; without it those interfaces have no
+  # implementation at all, not a silent fallback to Dolphin or anything else.
+  xdg.portal.extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
 
   # GUI privilege prompts (mounting a drive, some NetworkManager actions)
   # need an authentication agent; home.nix installs Hyprland's own

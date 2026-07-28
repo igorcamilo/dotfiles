@@ -1,6 +1,8 @@
 local mainMod = "SUPER"
 local terminal = "ghostty"
-local fileManager = "dolphin"
+-- yazi is a TUI app, so it needs to run inside a terminal rather than as its
+-- own window; dolphin (home.nix) stays installed as a GUI fallback.
+local fileManager = terminal .. " -e yazi"
 
 ------------
 -- MONITOR --

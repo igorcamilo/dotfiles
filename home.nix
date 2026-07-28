@@ -31,11 +31,13 @@
     stateVersion = "26.05";
 
     # hyprpolkitagent: GUI polkit agent, started from hyprland.lua. dolphin:
-    # file manager bound in hyprland.lua, with ffmpegthumbs for its video
-    # thumbnails. playerctl and wireplumber (wpctl): back the media-key binds
-    # in hyprland.lua. ffmpeg: the system H.264/AAC decoder Firefox loads at
-    # run time (it can't bundle those codecs itself; see the firefox profile
-    # below). libva-utils: run `vainfo` to confirm GPU video decode is active.
+    # kept installed as a GUI fallback now that yazi (programs.yazi below) is
+    # the file manager actually bound in hyprland.lua, with ffmpegthumbs for
+    # its video thumbnails. playerctl and wireplumber (wpctl): back the
+    # media-key binds in hyprland.lua. ffmpeg: the system H.264/AAC decoder
+    # Firefox loads at run time (it can't bundle those codecs itself; see the
+    # firefox profile below), and yazi's own video-preview dependency.
+    # libva-utils: run `vainfo` to confirm GPU video decode is active.
     packages = [
       pkgs.hyprpolkitagent
       pkgs.kdePackages.dolphin
@@ -107,6 +109,27 @@
     keepassxc = {
       enable = true;
       autostart = true;
+    };
+
+    # Default file manager, bound in hyprland.lua (runs inside ghostty, since
+    # it's a TUI app, not a standalone window like dolphin was). extraPackages
+    # are yazi's own documented optional dependencies for full preview
+    # support: ffmpeg (already in home.packages above) for video, poppler_utils
+    # for PDFs, resvg for SVGs, _7zz for archive listings, jq for JSON, fd and
+    # ripgrep for its filter/search. zsh integration wires up the `y` wrapper
+    # (cds the shell into wherever yazi was last, on quit).
+    yazi = {
+      enable = true;
+      enableZshIntegration = true;
+      extraPackages = [
+        pkgs._7zz
+        pkgs.jq
+        pkgs.poppler_utils
+        pkgs.fd
+        pkgs.ripgrep
+        pkgs.zoxide
+        pkgs.resvg
+      ];
     };
 
     ghostty = {
