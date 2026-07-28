@@ -1,50 +1,21 @@
-{ pkgs, ... }:
+_:
 
 {
+  imports = [ ./plasma.nix ];
+
   home = {
     username = "igor";
     homeDirectory = "/home/igor";
     stateVersion = "26.05";
-
-    packages = [
-      pkgs.bitwarden-desktop
-      pkgs.ffmpeg # H.264/AAC decoding for Firefox, which cannot bundle it.
-      pkgs.godot
-
-      # Cycles needs HIP to render on the GPU, and nixpkgs has no prebuilt
-      # ROCm Blender, so this builds from source and takes hours. Select the
-      # device under Settings > System > Cycles Render Devices > HIP.
-      (pkgs.blender.override { rocmSupport = true; })
-    ];
-
-    # Without this, VS Code and other Electron apps fall back to XWayland.
-    sessionVariables.NIXOS_OZONE_WL = "1";
   };
 
+  # Every package here is already installed system-wide in configuration.nix,
+  # so package = null keeps Home Manager from installing a second copy into the
+  # user profile; the module then only writes configuration.
   programs = {
     firefox = {
       enable = true;
-
-      # Plasma Integration is useless without its native messaging host, and
-      # the copy plasma6 installs system-wide is invisible to this wrapped
-      # Firefox - the wrapper only links in what it is given here.
-      nativeMessagingHosts = [ pkgs.kdePackages.plasma-browser-integration ];
-
-      # Keys are add-on ids on addons.mozilla.org. force_installed means this
-      # file owns the extension: to remove one, remove it here.
-      policies.ExtensionSettings = {
-        "{446900e4-71c2-419f-a6a7-df9c091e268b}" = {
-          install_url = "https://addons.mozilla.org/firefox/downloads/latest/bitwarden-password-manager/latest.xpi";
-          installation_mode = "force_installed";
-        };
-        # Media controls in the panel and on the lock screen, downloads in
-        # notifications, and open tabs in KRunner.
-        "plasma-browser-integration@kde.org" = {
-          install_url = "https://addons.mozilla.org/firefox/downloads/latest/plasma-integration/latest.xpi";
-          installation_mode = "force_installed";
-        };
-      };
-
+      package = null;
       profiles.igor = {
         isDefault = true;
         settings."media.ffmpeg.vaapi.enabled" = true; # Decode video on the GPU.
@@ -53,6 +24,7 @@
 
     vscode = {
       enable = true;
+      package = null;
       profiles.default.userSettings = {
         "diffEditor.experimental.showMoves" = true;
         "diffEditor.renderSideBySide" = false;
@@ -75,9 +47,10 @@
       };
     };
 
-    # Managed here, not only in configuration.nix, so Starship's hook lands in
-    # ~/.zshrc.
     zsh.enable = true;
+
+    # No package = null: this module has no such option, so Starship's binary
+    # comes from the user profile rather than environment.systemPackages.
     starship = {
       enable = true;
       settings = {

@@ -13,8 +13,10 @@ vendor-specific per-agent files or nested-file discovery.
 - `flake.nix`: locked inputs, shared module composition, one entry in
   `nixosConfigurations` per machine, and the Disko app used to partition a
   disk during installation.
-- `configuration.nix`: shared machine-wide operating-system configuration.
-- `home.nix`: shared user-session configuration.
+- `configuration.nix`: machine-wide configuration, and every installed
+  package.
+- `home.nix`: per-user configuration (Home Manager).
+- `plasma.nix`: per-user Plasma configuration (plasma-manager).
 - `hosts/<name>/`: hostname, install disk, and generated hardware scan.
 - `modules/`: shared storage and boot concerns.
 
@@ -23,15 +25,26 @@ vendor-specific per-agent files or nested-file discovery.
 1. Nix files describe the computers. Keep them focused on the desired
    installed system: no CI checks, test derivations, formatter outputs,
    development shells, or test-only workarounds.
-2. Optimize for a first-time reader. Prefer direct declarations and
+2. Track as much as the tooling allows. If a setting can be expressed as a
+   NixOS, Home Manager, or plasma-manager option, declare it here rather than
+   leaving it to a GUI, a mutable dotfile, or a vendor's own sync service.
+   After changing anything in Plasma's System Settings, capture it with
+   `nix run github:nix-community/plasma-manager#rc2nix` and commit the result.
+   When an option genuinely does not exist, say so explicitly instead of
+   quietly leaving the setting untracked.
+3. Packages are installed system-wide in `configuration.nix`; their
+   configuration is per-user in `home.nix` and `plasma.nix`. Where a Home
+   Manager module would install a second copy of a system package, set
+   `package = null` so it only writes configuration.
+4. Optimize for a first-time reader. Prefer direct declarations and
    descriptive names over abstractions. Comment the reasons and the safety
    constraints, not the syntax.
-3. Prefer ordinary NixOS options. Introduce a custom option only when it is
+5. Prefer ordinary NixOS options. Introduce a custom option only when it is
    the clean interface between genuinely separate modules, the way
    `nixos-config.storage.installDisk` sits between a host and the shared disk
    layout.
-4. Keep Disko the sole owner of partitions, filesystems, and mount points.
-5. Keep firmware trust manual. The configuration may prepare and sign boot
+6. Keep Disko the sole owner of partitions, filesystems, and mount points.
+7. Keep firmware trust manual. The configuration may prepare and sign boot
    artifacts, but must never enroll Secure Boot keys by itself.
 
 ## Safety

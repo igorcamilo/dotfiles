@@ -18,6 +18,12 @@
       url = "github:nix-community/home-manager";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    plasma-manager = {
+      url = "github:nix-community/plasma-manager";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.home-manager.follows = "home-manager";
+    };
   };
 
   outputs =
@@ -26,6 +32,7 @@
       disko,
       lanzaboote,
       home-manager,
+      plasma-manager,
       ...
     }:
     let
@@ -40,6 +47,7 @@
           home-manager = {
             useGlobalPkgs = true;
             useUserPackages = true;
+            sharedModules = [ plasma-manager.homeModules.plasma-manager ];
             users.igor = import ./home.nix;
             # Renames a pre-existing unmanaged file aside instead of aborting
             # activation, e.g. VS Code's own settings.json on first switch.

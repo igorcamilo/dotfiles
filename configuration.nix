@@ -97,16 +97,55 @@
   programs = {
     zsh.enable = true;
     steam.enable = true;
+    vscode.enable = true;
+
     nh = {
       enable = true;
       flake = "/etc/nixos";
     };
+
+    # Extensions have to be declared here rather than in home.nix: Home
+    # Manager applies policies by wrapping the Firefox package, and its
+    # package is null there. Profile settings live in home.nix.
+    firefox = {
+      enable = true;
+
+      # Keys are add-on ids on addons.mozilla.org. force_installed means this
+      # file owns the extension: to remove one, remove it here. Plasma
+      # Integration's native messaging host needs no wiring, because plasma6
+      # already adds it to programs.firefox.nativeMessagingHosts.packages.
+      policies.ExtensionSettings = {
+        "{446900e4-71c2-419f-a6a7-df9c091e268b}" = {
+          install_url = "https://addons.mozilla.org/firefox/downloads/latest/bitwarden-password-manager/latest.xpi";
+          installation_mode = "force_installed";
+        };
+        # Media controls in the panel and on the lock screen, downloads in
+        # notifications, and open tabs in KRunner.
+        "plasma-browser-integration@kde.org" = {
+          install_url = "https://addons.mozilla.org/firefox/downloads/latest/plasma-integration/latest.xpi";
+          installation_mode = "force_installed";
+        };
+      };
+    };
   };
 
-  environment.systemPackages = [
-    pkgs.git
-    pkgs.nano
-  ];
+  environment = {
+    systemPackages = [
+      pkgs.bitwarden-desktop
+      # Cycles needs HIP to render on the GPU, and nixpkgs has no prebuilt
+      # ROCm Blender, so this builds from source and takes hours. Select the
+      # device under Settings > System > Cycles Render Devices > HIP.
+      (pkgs.blender.override { rocmSupport = true; })
+      pkgs.ffmpeg # H.264/AAC decoding for Firefox, which cannot bundle it.
+      pkgs.git
+      pkgs.godot
+      pkgs.nano
+      pkgs.nixfmt
+    ];
+
+    # Without this, VS Code and other Electron apps fall back to XWayland.
+    sessionVariables.NIXOS_OZONE_WL = "1";
+  };
 
   # Starship's prompt needs the patched glyphs. Select it as Konsole's font.
   fonts.packages = [ pkgs.nerd-fonts.jetbrains-mono ];
