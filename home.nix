@@ -12,16 +12,15 @@ _:
     stateVersion = "26.05";
   };
 
-  # Every package here is already installed system-wide in configuration.nix,
-  # so package = null keeps Home Manager from installing a second copy into the
-  # user profile; the module then only writes configuration.
+  # package = null: these are installed system-wide, so the module writes
+  # configuration without adding a second copy to the user profile.
   programs = {
     firefox = {
       enable = true;
       package = null;
       profiles.igor = {
         isDefault = true;
-        settings."media.ffmpeg.vaapi.enabled" = true; # Decode video on the GPU.
+        settings."media.ffmpeg.vaapi.enabled" = true;
       };
     };
 
@@ -38,12 +37,10 @@ _:
             "text" = "Limit header to 50 characters max and body lines to 72 characters max.";
           }
         ];
-        # KWin draws the title bar, so VS Code's own window controls are dead
-        # weight. Needs a full restart of VS Code.
-        "window.controlsStyle" = "hidden";
+        "window.controlsStyle" = "hidden"; # KWin already draws a title bar.
       };
-      # VS Code writes these on first run; declaring them stops it from trying
-      # to write into a read-only store symlink.
+      # Declared because VS Code writes them itself on first run, and its
+      # argv.json is a read-only store symlink.
       argvSettings = {
         "enable-crash-reporter" = true;
         "crash-reporter-id" = "6eeb860a-4e8d-482b-bae9-b6fd7c3f17dd";
@@ -52,17 +49,22 @@ _:
 
     zsh = {
       enable = true;
-      # rc2nix only writes to stdout, and through a temporary file so a failed
-      # dump cannot truncate plasma-generated.nix.
-      shellAliases.config-sync = builtins.concatStringsSep " && " [
-        "rc2nix > /tmp/plasma-generated.nix"
-        "mv /tmp/plasma-generated.nix /etc/nixos/plasma-generated.nix"
-        "nh os switch --update"
-      ];
+      shellAliases = {
+        # Through a temporary file: rc2nix only writes to stdout, and a failed
+        # dump would otherwise truncate plasma-generated.nix.
+        config-sync = builtins.concatStringsSep " && " [
+          "rc2nix > /tmp/plasma-generated.nix"
+          "mv /tmp/plasma-generated.nix /etc/nixos/plasma-generated.nix"
+          "nh os switch --update"
+        ];
+
+        llama-start = "sudo systemctl start llama-cpp";
+        llama-stop = "sudo systemctl stop llama-cpp"; # Frees the VRAM.
+        llama-log = "journalctl --follow --unit llama-cpp";
+      };
     };
 
-    # No package = null: this module has no such option, so Starship's binary
-    # comes from the user profile rather than environment.systemPackages.
+    # Installs into the user profile: this module has no package option.
     starship = {
       enable = true;
       settings = {

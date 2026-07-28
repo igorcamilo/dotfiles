@@ -49,8 +49,7 @@
             useUserPackages = true;
             sharedModules = [ plasma-manager.homeModules.plasma-manager ];
             users.igor = import ./home.nix;
-            # Renames a pre-existing unmanaged file aside instead of aborting
-            # activation, e.g. VS Code's own settings.json on first switch.
+            # Otherwise activation aborts on a pre-existing unmanaged file.
             backupFileExtension = "backup";
           };
         }
@@ -59,14 +58,11 @@
     {
       nixosConfigurations.igor-desktop = nixpkgs.lib.nixosSystem {
         system = "x86_64-linux";
-        # configuration.nix installs rc2nix from this input, so the tool stays
-        # on the revision in flake.lock.
         specialArgs = { inherit plasma-manager; };
         modules = sharedModules ++ [ ./hosts/igor-desktop ];
       };
 
-      # Keeps the Disko command-line tool on the revision in flake.lock rather
-      # than whatever a separate fetch would pull.
+      # Keeps the tool on the revision locked here rather than a separate fetch.
       apps.x86_64-linux.disko = {
         type = "app";
         program = "${disko.packages.x86_64-linux.default}/bin/disko";

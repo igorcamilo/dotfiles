@@ -6,15 +6,14 @@
     loader = {
       efi.canTouchEfiVariables = true;
 
-      # Lanzaboote installs systemd-boot itself.
-      systemd-boot.enable = lib.mkForce false;
+      systemd-boot.enable = lib.mkForce false; # Lanzaboote installs it itself.
     };
     lanzaboote = {
       enable = true;
       pkiBundle = "/var/lib/sbctl";
 
-      # Keys do not exist during installation, so the first boot runs
-      # unsigned and creates them. Firmware enrollment stays manual.
+      # No keys exist during installation, so the first boot runs unsigned and
+      # creates them. Enrolling them into firmware stays manual.
       autoGenerateKeys.enable = true;
       autoEnrollKeys.enable = false;
 

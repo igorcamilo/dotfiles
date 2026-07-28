@@ -40,15 +40,23 @@ vendor-specific per-agent files or nested-file discovery.
    install a second copy of a system package, set `package = null` so it only
    writes configuration.
 4. Optimize for a first-time reader. Prefer direct declarations and
-   descriptive names over abstractions. Comment the reasons and the safety
-   constraints, not the syntax.
-5. Prefer ordinary NixOS options. Introduce a custom option only when it is
+   descriptive names over abstractions.
+5. Comment only what the code cannot say, and default to not commenting. A
+   comment earns its place when it records a constraint imposed by hardware or
+   an upstream package, warns about a cost, or stops a later reader from
+   "fixing" something that is deliberate. Never restate an option name, explain
+   what a package does, justify an obvious choice, or point at another file in
+   this repository. Prefer one clause at the end of the line over a paragraph
+   above it. When unsure, leave it out.
+6. Prefer ordinary NixOS options. Introduce a custom option only when it is
    the clean interface between genuinely separate modules, the way
    `nixos-config.storage.installDisk` sits between a host and the shared disk
    layout.
-6. Keep Disko the sole owner of partitions, filesystems, and mount points.
-7. Keep firmware trust manual. The configuration may prepare and sign boot
+7. Keep Disko the sole owner of partitions, filesystems, and mount points.
+8. Keep firmware trust manual. The configuration may prepare and sign boot
    artifacts, but must never enroll Secure Boot keys by itself.
+9. Keep `README.md` to procedures a reader cannot run from the configuration
+   itself. Never restate option values, package lists, or shell aliases there.
 
 ## Safety
 

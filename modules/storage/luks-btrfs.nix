@@ -19,10 +19,7 @@ in
         ESP = {
           priority = 1;
           name = "ESP";
-          # Lanzaboote keeps a full signed UKI per generation, times
-          # configurationLimit in modules/boot/secure-boot.nix. 1G is too
-          # little.
-          size = "2G";
+          size = "2G"; # A full signed UKI per generation; 1G is too little.
           type = "EF00";
           content = {
             type = "filesystem";

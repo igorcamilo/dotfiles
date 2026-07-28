@@ -60,40 +60,23 @@ reboot
 Nix warns that the Git tree is dirty because two tracked files were edited.
 That is expected; those edits are what gets installed.
 
-## Capture Plasma settings and update
+## Capture Plasma settings
 
-Change what you want in System Settings, then:
-
-```sh
-config-sync
-```
-
-That runs `rc2nix` into `plasma-generated.nix`, updates every flake input, and
-rebuilds. Review and commit both files afterwards:
+Change what you want in System Settings, run `config-sync`, then review and
+commit what it produced:
 
 ```sh
 git -C /etc/nixos diff -- plasma-generated.nix flake.lock
 ```
 
-`rc2nix` rewrites `plasma-generated.nix` wholesale, so never edit that file.
-Hand-written Plasma settings go in `plasma.nix`, which also has to hold
-anything `rc2nix` deliberately drops as uninteresting state — the global
-theme, colour scheme and Plasma theme among them.
-
-`--update` refreshes every flake input and writes `flake.lock`, which is what
-pins all packages. It runs as your user, and `/etc/nixos` is a symlink into
-your own checkout, so it can write the lock. Note that the lock is updated
-before the build, so a failed build still leaves it changed.
-
-Two things Nix does not pin: the Firefox extensions, which Firefox updates
-itself from addons.mozilla.org, and the llama.cpp model, which is fetched at
-first start and cached under `/var/cache/llama-cpp`.
+Nothing pins the Firefox extensions or the llama.cpp model; both fetch their
+own updates.
 
 ## Local model in VS Code
 
-`llama-server` runs the model; wiring it into Copilot Chat is manual. Run
-**Chat: Manage Language Models** → Add Models → Custom Endpoint → Chat
-Completions, with URL `http://127.0.0.1:8080/v1/chat/completions` and model id
+Start the server with `llama-start` first. Then run **Chat: Manage Language
+Models** → Add Models → Custom Endpoint → Chat Completions, with URL
+`http://127.0.0.1:8080/v1/chat/completions` and model id
 `qwen3-coder-30b-a3b`. In the `chatLanguageModels.json` that VS Code opens, set
 `"toolCalling": true` on that model, or Copilot offers it in Ask mode only.
 
