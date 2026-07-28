@@ -89,6 +89,16 @@ Two things Nix does not pin: the Firefox extensions, which Firefox updates
 itself from addons.mozilla.org, and the llama.cpp model, which is fetched at
 first start and cached under `/var/cache/llama-cpp`.
 
+## Local model in VS Code
+
+`llama-server` runs the model; wiring it into Copilot Chat is manual. Run
+**Chat: Manage Language Models** → Add Models → Custom Endpoint → Chat
+Completions, with URL `http://127.0.0.1:8080/v1/chat/completions` and model id
+`qwen3-coder-30b-a3b`. In the `chatLanguageModels.json` that VS Code opens, set
+`"toolCalling": true` on that model, or Copilot offers it in Ask mode only.
+
+The first start downloads about 15GB, so the service takes a while to come up.
+
 ## Secure Boot
 
 Lanzaboote creates the signing keys on the first boot of the installed system,

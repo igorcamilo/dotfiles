@@ -1,11 +1,8 @@
 _:
 
-# Hand-written Plasma settings. rc2nix deliberately drops a few keys as
-# uninteresting state, so anything it blocks has to be declared here or it
-# stays untracked: LookAndFeelPackage, ColorScheme and Theme are the ones that
-# matter, which is why the whole global theme lives in this file.
-#
-# Everything else is captured into plasma-generated.nix by config-sync.
+# Hand-written Plasma settings, for what config-sync cannot capture: rc2nix
+# blocks LookAndFeelPackage, ColorScheme and Theme as uninteresting state, so
+# the global theme has to be declared rather than snapshotted.
 
 {
   programs.plasma = {
@@ -17,9 +14,7 @@ _:
     enable = true;
     defaultProfile = "igor";
     profiles.igor.font = {
-      # The Nerd Font that configuration.nix installs, so Starship's prompt
-      # glyphs render.
-      name = "JetBrainsMono Nerd Font";
+      name = "JetBrainsMono Nerd Font"; # Starship's prompt glyphs need it.
       size = 11;
     };
   };

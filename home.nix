@@ -52,10 +52,8 @@ _:
 
     zsh = {
       enable = true;
-      # Capture the live Plasma settings, update every flake input, and
-      # rebuild. rc2nix writes to stdout, and via a temporary file so a failed
-      # dump cannot truncate plasma-generated.nix. /etc/nixos is the symlink
-      # to the checkout, so this works wherever the repository was cloned.
+      # rc2nix only writes to stdout, and through a temporary file so a failed
+      # dump cannot truncate plasma-generated.nix.
       shellAliases.config-sync = builtins.concatStringsSep " && " [
         "rc2nix > /tmp/plasma-generated.nix"
         "mv /tmp/plasma-generated.nix /etc/nixos/plasma-generated.nix"

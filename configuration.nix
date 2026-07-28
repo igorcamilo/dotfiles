@@ -18,6 +18,11 @@
     LC_TIME = "de_DE.UTF-8";
   };
 
+  # Both already default to "us"; declared so the layout is recorded rather
+  # than inherited. console.keyMap is what the disk-unlock prompt uses, before
+  # Plasma's own layout applies.
+  console.keyMap = "us";
+
   nixpkgs.config.allowUnfree = true;
 
   # RDNA4 (RX 9070 XT) needs a newer kernel than the nixpkgs default targets.
@@ -59,6 +64,25 @@
 
     fwupd.enable = true;
 
+    xserver.xkb.layout = "us"; # Read by Plasma; does not start an X server.
+
+    openssh = {
+      enable = true;
+      # Root has no password on this machine, so the only way in is igor.
+      # Add a key to users.users.igor.openssh.authorizedKeys.keys and set
+      # PasswordAuthentication = false once there is one to log in with.
+      settings.PermitRootLogin = "no";
+    };
+
+    printing.enable = true;
+
+    # Discovery for network printers; CUPS finds nothing on its own here.
+    avahi = {
+      enable = true;
+      nssmdns4 = true;
+      openFirewall = true;
+    };
+
     # plasma6 already provides Breeze theming, the portals, the polkit agent,
     # KWallet, BlueDevil, udisks2, dconf, and the default Wayland session.
     desktopManager.plasma6.enable = true;
@@ -70,12 +94,7 @@
     # coldest expert weights in system RAM; Ollama's offload is not MoE-aware.
     # Q3_K_M (14.7GB) is the largest quantization that fits 16GB next to KWin.
     # The offload and context numbers are a starting point - llama-server logs
-    # its real VRAM use at startup.
-    #
-    # VS Code: "Chat: Manage Language Models" -> Custom Endpoint ->
-    # http://127.0.0.1:8080/v1/chat/completions, model id "qwen3-coder-30b-a3b".
-    # Set "toolCalling": true in the chatLanguageModels.json it opens, or
-    # Copilot offers this model in Ask mode only.
+    # its real VRAM use at startup. README.md has the VS Code wiring.
     llama-cpp = {
       enable = true;
       package = pkgs.llama-cpp-rocm;
@@ -102,6 +121,13 @@
     nh = {
       enable = true;
       flake = "/etc/nixos";
+      clean = {
+        enable = true;
+        # nh keeps one generation by default. Keeping as many as Lanzaboote
+        # lists in modules/boot/secure-boot.nix stops the boot menu offering
+        # entries whose system closure has been collected.
+        extraArgs = "--keep 8";
+      };
     };
 
     # Extensions have to be declared here rather than in home.nix: Home
@@ -119,8 +145,6 @@
           install_url = "https://addons.mozilla.org/firefox/downloads/latest/bitwarden-password-manager/latest.xpi";
           installation_mode = "force_installed";
         };
-        # Media controls in the panel and on the lock screen, downloads in
-        # notifications, and open tabs in KRunner.
         "plasma-browser-integration@kde.org" = {
           install_url = "https://addons.mozilla.org/firefox/downloads/latest/plasma-integration/latest.xpi";
           installation_mode = "force_installed";
@@ -141,9 +165,7 @@
       pkgs.godot
       pkgs.nano
       pkgs.nixfmt
-      # Dumps the live Plasma configuration as Nix; the config-sync alias in
-      # home.nix writes it to plasma-generated.nix.
-      plasma-manager.packages.${pkgs.system}.rc2nix
+      plasma-manager.packages.${pkgs.system}.rc2nix # Used by config-sync.
     ];
 
     # Without this, VS Code and other Electron apps fall back to XWayland.
