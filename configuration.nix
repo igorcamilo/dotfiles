@@ -18,7 +18,12 @@
     LC_TIME = "de_DE.UTF-8";
   };
 
-  nixpkgs.config.allowUnfree = true;
+  nixpkgs.config = {
+    allowUnfree = true;
+    # Builds pkgs.llama-cpp (systemd.services.llama-cpp below) against ROCm
+    # instead of CPU-only.
+    rocmSupport = true;
+  };
 
   # RDNA4 (RX 9070 XT) needs a newer kernel and Mesa than the nixpkgs default
   # kernel targets; track the latest stable release instead of the default.
@@ -84,26 +89,74 @@
     udisks2.enable = true;
 
     btrfs.autoScrub.enable = true;
+  };
 
-    # ROCm 7.2 (2026-03) added official support for this GPU (RDNA4/gfx1201);
-    # rocmOverrideGfx (sets HSA_OVERRIDE_GFX_VERSION) is the fallback if a
-    # future package update ever fails to detect it, not needed by default.
-    # loadModels pulls a coding model straight from its GGUF source on first
-    # activation - see docs/ideas.md for the full model/hardware feasibility
-    # notes. Q3_K_M is the quantization that actually fits this card's 16GB
-    # alongside Hyprland's own VRAM usage (Q4_K_M alone is 18.6GB, already
-    # over budget before the desktop takes anything).
-    #
-    # VS Code integration is the one manual step this can't cover: nixpkgs'
-    # curated vscode-extensions set doesn't package the official Ollama
-    # extension, so install it by hand (`code --install-extension
-    # Ollama.ollama`), then enable the pulled model from Copilot Chat's
-    # model picker - it auto-discovers this service's default
-    # 127.0.0.1:11434 with no settings.json changes needed.
-    ollama = {
-      enable = true;
-      package = pkgs.ollama-rocm;
-      loadModels = [ "hf.co/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q3_K_M" ];
+  # ROCm 7.2 (2026-03) added official support for this GPU (RDNA4/gfx1201).
+  # If a future package update ever fails to detect it, the fallback is
+  # setting HSA_OVERRIDE_GFX_VERSION in serviceConfig.Environment below - not
+  # needed by default.
+  #
+  # Runs Qwen3-Coder-30B-A3B (a mixture-of-experts model: 30B total
+  # parameters, ~3B active per token - see docs/ideas.md for the full
+  # model/hardware feasibility notes) through llama.cpp's own llama-server
+  # instead of Ollama. Reason for the switch: Ollama's offload logic isn't
+  # MoE-aware (open upstream issues about misplacing expert layers on partial
+  # offload), while llama-server's --n-cpu-moe flag can deliberately park the
+  # coldest expert weights in system RAM and pull back only the ones a given
+  # token actually routes to - that's what buys headroom for a real context
+  # window on top of a model this size, which plain VRAM-fit alone can't.
+  # Q3_K_M (14.7GB) is still the quantization that fits this card's 16GB
+  # alongside Hyprland's own usage (Q4_K_M alone is 18.6GB).
+  #
+  # --n-gpu-layers, --n-cpu-moe and --ctx-size below are a first-pass
+  # starting point, not tuned numbers: llama-server logs its actual VRAM
+  # allocation at startup, and both offload flags need adjusting from there
+  # until it fits next to Hyprland's own VRAM draw. --flash-attn would shrink
+  # the KV cache further, letting --ctx-size go higher, but its ROCm/gfx1201
+  # support has had rough edges on some ROCm point releases - worth trying
+  # once the base service is confirmed working (check the exact current flag
+  # spelling with `llama-server --help`, it's changed across versions).
+  #
+  # VS Code integration is manual, replacing the old Ollama-extension step:
+  # run "Chat: Manage Language Models" -> Add Models -> Custom Endpoint ->
+  # Chat Completions, URL http://127.0.0.1:8080/v1/chat/completions, model id
+  # "qwen3-coder-30b-a3b". Set "toolCalling": true on that model in the
+  # chatLanguageModels.json VS Code opens for you - without it Copilot only
+  # offers this model in Ask mode, not Agent mode. Known caveat: the chat
+  # template embedded in this GGUF 500s on tool calls whose parameters have
+  # no "properties" field - see
+  # https://huggingface.co/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/discussions/10
+  # for the community patch (a --chat-template-file override) if that trips
+  # you up before upstream fixes it.
+  systemd.services.llama-cpp = {
+    description = "llama.cpp server (Qwen3-Coder-30B-A3B)";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "network-online.target" ];
+    wants = [ "network-online.target" ];
+    serviceConfig = {
+      DynamicUser = true;
+      StateDirectory = "llama-cpp";
+      Restart = "on-failure";
+      # First boot downloads the 14.7GB model file; default systemd startup
+      # timeouts would kill that partway through.
+      TimeoutStartSec = "30min";
+      ExecStart = pkgs.writeShellScript "llama-cpp-server" ''
+        set -euo pipefail
+        model="$STATE_DIRECTORY/Qwen3-Coder-30B-A3B-Instruct-Q3_K_M.gguf"
+        if [ ! -f "$model" ]; then
+          ${pkgs.curl}/bin/curl -L --fail -o "$model.part" \
+            "https://huggingface.co/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/resolve/main/Qwen3-Coder-30B-A3B-Instruct-Q3_K_M.gguf"
+          mv "$model.part" "$model"
+        fi
+        exec ${pkgs.llama-cpp}/bin/llama-server \
+          --model "$model" \
+          --host 127.0.0.1 --port 8080 \
+          --alias qwen3-coder-30b-a3b \
+          --n-gpu-layers 999 \
+          --n-cpu-moe 8 \
+          --ctx-size 32768 \
+          --jinja
+      '';
     };
   };
 

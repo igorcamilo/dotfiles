@@ -182,11 +182,18 @@ does, since those issues live in KeePassXC's own D-Bus-facing code:
 
 ## Local LLM serving VS Code Copilot instead of the hosted service
 
-**Implemented** (`services.ollama` in `configuration.nix`, the
-`Ollama.ollama` extension via `programs.vscode` in `home.nix`) - notes below
-kept for context. The one remaining manual step is enabling the pulled
-model in Copilot Chat's model picker itself, which isn't exposed as a
-settings.json key.
+**Implemented** (`systemd.services.llama-cpp` in `configuration.nix`) -
+notes below kept for context on model/hardware choice. VS Code integration
+is now Copilot Chat's own built-in "Custom Endpoint" model picker entry
+pointed at llama-server's OpenAI-compatible API, not an extension - see the
+comment above that service definition for exact steps.
+
+Originally implemented with `services.ollama` + the `Ollama.ollama`
+extension; dropped both because the extension only ever exposed the model
+to Copilot Chat's Ask mode, never Agent mode (no tool-calling support), and
+Ollama's own offload logic isn't MoE-aware, which mattered once "more
+context on this hardware" became the actual goal - see llama-cpp's own
+comment in `configuration.nix` for the `--n-cpu-moe` reasoning.
 
 **Feasibility: high, and easier than expected for the integration half
 specifically.** VS Code's Copilot Chat model picker briefly had a built-in
