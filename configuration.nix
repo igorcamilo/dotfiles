@@ -32,8 +32,8 @@
       "networkmanager"
     ];
     shell = pkgs.zsh;
-    # The installer sets the initial password imperatively. Passwords remain
-    # mutable, so later changes with passwd survive rebuilds.
+    # Installation sets the initial password with passwd. Passwords remain
+    # mutable, so later changes survive rebuilds.
   };
 
   zramSwap.enable = true;
@@ -65,61 +65,49 @@
       pulse.enable = true;
     };
 
-    # Pairing UI and polkit rules for the Bluetooth radio enabled above.
-    blueman.enable = true;
-
     fwupd.enable = true;
 
+    # Plasma 6 on Wayland, with KDE's own login manager instead of SDDM. The
+    # plasma6 module already brings Breeze theming for Qt and GTK, the
+    # portals, the polkit agent, KWallet, BlueDevil for the Bluetooth radio
+    # enabled above, udisks2, dconf, and it makes the Wayland "plasma" session
+    # the default one, so none of that needs declaring here.
     desktopManager.plasma6.enable = true;
-    displayManager.sddm.enable = true;
-
-    udisks2.enable = true;
+    displayManager.plasma-login-manager.enable = true;
 
     btrfs.autoScrub.enable = true;
 
-    # ROCm 7.2 (2026-03) added official support for this GPU (RDNA4/gfx1201);
-    # rocmOverrideGfx (sets HSA_OVERRIDE_GFX_VERSION) is the fallback if a
-    # future package update ever fails to detect it, not needed by default.
-    # loadModels pulls a coding model straight from its GGUF source on first
-    # activation - see docs/ideas.md for the full model/hardware feasibility
-    # notes. Q3_K_M is the quantization that actually fits this card's 16GB
-    # alongside the desktop's own VRAM usage (Q4_K_M alone is 18.6GB, already
-    # over budget before the desktop takes anything).
-    #
     # Runs Qwen3-Coder-30B-A3B (a mixture-of-experts model: 30B total
-    # parameters, ~3B active per token - see docs/ideas.md for the full
-    # model/hardware feasibility notes) through llama.cpp's own llama-server
-    # instead of Ollama. Reason for the switch: Ollama's offload logic isn't
-    # MoE-aware (open upstream issues about misplacing expert layers on
-    # partial offload), while llama-server's n-cpu-moe setting can
-    # deliberately park the coldest expert weights in system RAM and pull
-    # back only the ones a given token actually routes to - that's what buys
-    # headroom for a real context window on top of a model this size, which
-    # plain VRAM-fit alone can't. Q3_K_M (14.7GB) is still the quantization
-    # that fits this card's 16GB alongside Hyprland's own usage (Q4_K_M alone
-    # is 18.6GB). hf-repo pulls the same GGUF straight from its source on
-    # first start, same as Ollama's old loadModels, caching it under
-    # /var/cache/llama-cpp (this module sets LLAMA_CACHE there) so later
-    # restarts don't re-download it.
+    # parameters, ~3B active per token) through llama.cpp's own llama-server
+    # rather than Ollama, whose offload logic is not MoE-aware. llama-server's
+    # n-cpu-moe setting deliberately parks the coldest expert weights in
+    # system RAM and pulls back only the ones a token actually routes to,
+    # which is what buys a real context window on top of a model this size.
     #
-    # n-gpu-layers/n-cpu-moe/ctx-size below are a first-pass starting point,
-    # not tuned numbers: llama-server logs its actual VRAM allocation at
-    # startup, and both offload settings need adjusting from there until it
-    # fits next to Hyprland's own VRAM draw. flash-attn = "auto" lets it fall
-    # back safely if ROCm/gfx1201 flash-attention support is flaky on the
-    # exact ROCm point release in use, rather than hard-failing.
+    # Q3_K_M (14.7GB) is the quantization that fits this card's 16GB alongside
+    # the desktop's own VRAM usage; Q4_K_M alone is 18.6GB. hf-repo pulls that
+    # GGUF straight from its source on first start and caches it under
+    # /var/cache/llama-cpp (the module sets LLAMA_CACHE there), so restarts do
+    # not re-download it. ROCm 7.2 added official support for this GPU
+    # (RDNA4/gfx1201), so rocmOverrideGfx is only a fallback if a future
+    # package update fails to detect it.
+    #
+    # n-gpu-layers/n-cpu-moe/ctx-size are a starting point, not tuned numbers:
+    # llama-server logs its actual VRAM allocation at startup, and both
+    # offload settings want adjusting from there until the model fits next to
+    # KWin's own VRAM draw. flash-attn = "auto" falls back safely if
+    # ROCm/gfx1201 flash-attention support is flaky on the ROCm point release
+    # in use, instead of hard-failing.
     #
     # VS Code integration is manual: run "Chat: Manage Language Models" ->
     # Add Models -> Custom Endpoint -> Chat Completions, URL
     # http://127.0.0.1:8080/v1/chat/completions, model id
-    # "qwen3-coder-30b-a3b" (the alias below). Set "toolCalling": true on
-    # that model in the chatLanguageModels.json VS Code opens for you -
-    # without it Copilot only offers this model in Ask mode, not Agent mode.
-    # Known caveat: the chat template embedded in this GGUF 500s on tool
-    # calls whose parameters have no "properties" field - see
-    # https://huggingface.co/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF/discussions/10
-    # for the community patch (a chat-template-file override) if that trips
-    # you up before upstream fixes it.
+    # "qwen3-coder-30b-a3b" (the alias below). Set "toolCalling": true on that
+    # model in the chatLanguageModels.json VS Code opens for you - without it
+    # Copilot only offers this model in Ask mode, not Agent mode. Known
+    # caveat: the chat template embedded in this GGUF 500s on tool calls whose
+    # parameters have no "properties" field; the community patch is a
+    # chat-template-file override.
     llama-cpp = {
       enable = true;
       package = pkgs.llama-cpp-rocm;
@@ -140,21 +128,15 @@
   # through.
   systemd.services.llama-cpp.serviceConfig.TimeoutStartSec = "30min";
 
-  # Desktop: Plasma 6, the NixOS-documented default KDE install
-  # (services.desktopManager.plasma6 + services.displayManager.sddm). It
-  # brings its own Qt/GTK theming (Breeze + kde-gtk-config), portals
-  # (xdg-desktop-portal-kde + kwallet), and polkit agent
-  # (polkit-kde-agent-1), so none of those need declaring by hand here.
   programs = {
-    dconf.enable = true;
-    # Registers zsh as a valid login shell; users.users.igor.shell above
-    # is what makes it igor's actual default.
+    # Registers zsh as a valid login shell; users.users.igor.shell above is
+    # what makes it igor's actual default.
     zsh.enable = true;
     # Needs the 32-bit graphics support enabled above.
     steam.enable = true;
-    # Shorter, friendlier front-end for nixos-rebuild (build-tree progress,
-    # a diff of the generation change); flake points it at this checkout so
-    # `nh os switch` needs no other arguments.
+    # Shorter, friendlier front-end for nixos-rebuild (build-tree progress, a
+    # diff of the generation change); flake points it at the installed
+    # checkout so `nh os switch` needs no other arguments.
     nh = {
       enable = true;
       flake = "/etc/nixos";
@@ -163,14 +145,12 @@
 
   environment.systemPackages = [
     pkgs.git
-    # The installed checkout contains LFS-tracked wallpapers.
-    pkgs.git-lfs
     pkgs.nano
   ];
 
   # JetBrainsMono Nerd Font: patched with the icon glyphs Starship's prompt
-  # and Ghostty's own UI expect (see home.nix). Installed system-wide, not
-  # just for igor, since fontconfig discovery works the same either way.
+  # expects (see home.nix). Select it as Konsole's profile font; Plasma's own
+  # interface keeps the Noto fonts the plasma6 module installs.
   fonts.packages = [ pkgs.nerd-fonts.jetbrains-mono ];
 
   nix.settings.experimental-features = [

@@ -1,6 +1,0 @@
-base: lua51
-globals:
-  # Injected by the hyprland-lua runtime that executes dotfiles/hypr/*.lua;
-  # never `require`d, so selene otherwise sees it as an undefined global.
-  hl:
-    any: true

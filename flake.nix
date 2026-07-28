@@ -1,5 +1,5 @@
 {
-  description = "NixOS configuration for Igor's desktop";
+  description = "NixOS configuration for Igor's machines";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -57,7 +57,9 @@
         modules = sharedModules ++ [ ./hosts/igor-desktop ];
       };
 
-      # install.sh uses the Disko app pinned by flake.lock.
+      # Partitioning during installation runs this Disko rather than a
+      # separately fetched one, so the command-line tool always matches the
+      # Disko module revision recorded in flake.lock.
       apps.x86_64-linux.disko = {
         type = "app";
         program = "${disko.packages.x86_64-linux.default}/bin/disko";

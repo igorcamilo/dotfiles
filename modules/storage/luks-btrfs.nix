@@ -1,10 +1,12 @@
 { config, lib, ... }:
 
 let
-  cfg = config.dotfiles.storage;
+  cfg = config.nixos-config.storage;
 in
 {
-  options.dotfiles.storage.installDisk = lib.mkOption {
+  # The one fact this layout cannot know by itself: which disk it belongs to.
+  # Every host that imports this file supplies its own.
+  options.nixos-config.storage.installDisk = lib.mkOption {
     type = lib.types.str;
     example = "/dev/disk/by-id/nvme-example";
     description = "Stable whole-disk path used by Disko during installation.";

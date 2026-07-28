@@ -6,101 +6,43 @@
     homeDirectory = "/home/igor";
     stateVersion = "26.05";
 
-    # Dolphin, KWallet's polkit agent, Kate/KWrite, etc. all come from
-    # services.desktopManager.plasma6 in configuration.nix, so only genuinely
-    # extra packages belong here. ffmpeg: the system H.264/AAC decoder
-    # Firefox loads at run time (it can't bundle those codecs itself; see the
-    # firefox profile below). libva-utils: run `vainfo` to confirm GPU video
-    # decode is active.
+    # Konsole, Dolphin, Kate, Spectacle and the rest of the standard Plasma
+    # applications come from services.desktopManager.plasma6 in
+    # configuration.nix, so only genuinely extra ones belong here. ffmpeg is
+    # the system H.264/AAC decoder Firefox loads at run time; it cannot bundle
+    # those codecs itself.
     packages = [
       pkgs.ffmpeg
-      pkgs.libva-utils
+      pkgs.godot
+
+      # Cycles only renders on the GPU when Blender is built with HIP.
+      # nixpkgs dropped the blender-hip attribute in favour of ROCm-enabled
+      # package sets; this override is the same thing scoped to one package
+      # instead of rebuilding a second nixpkgs. It is a local source build -
+      # the binary cache only carries the CPU-only Blender, and
+      # WITH_CYCLES_HIP_BINARIES compiles Cycles kernels for every supported
+      # AMD architecture, gfx1201 (RX 9070 XT) included - so expect the first
+      # build to be long. Pick the device afterwards under Settings > System >
+      # Cycles Render Devices > HIP; Blender does not select it by itself.
+      (pkgs.blender.override { rocmSupport = true; })
     ];
 
-    # EDITOR/VISUAL point at neovim (programs.neovim.defaultEditor below),
-    # for git commit/crontab -e/etc.; it blocks the caller by default, no
-    # extra flag needed. NIXOS_OZONE_WL: VS Code (kept for manual use, not
-    # wired as a default) is Electron; without this it falls back to
-    # XWayland instead of native Wayland.
     sessionVariables = {
+      # VS Code is Electron; without this it falls back to XWayland instead of
+      # running natively under KWin's Wayland session.
       NIXOS_OZONE_WL = "1";
     };
-
-    # Plasma ships and applies its own Breeze cursor theme (see
-    # xdg.icons.fallbackCursorThemes in the plasma6 module) across native
-    # Wayland, GTK, and XWayland clients alike, so no cursor theme needs
-    # declaring here.
   };
 
   programs = {
-    # Stands in for gnome-keyring or KWallet as the Secret Service provider,
-    # for applications that call that D-Bus API themselves. NetworkManager
-    # does not: it reaches a Secret Service only through a NetworkManager
-    # secret agent, which this session deliberately does not run, so Wi-Fi
-    # passphrases stay in /etc/NetworkManager/system-connections on the
-    # encrypted root rather than in a vault.
-    #
-    # Secret Service is left as a first-run GUI toggle instead of a declared
-    # setting: home-manager links keepassxc.ini read-only into the store
-    # whenever `settings` is non-empty, which would also stop KeePassXC from
-    # recording which database to reopen on autostart.
-    keepassxc = {
-      enable = true;
-      autostart = true;
-    };
-
-    # Default file manager, bound in hyprland.lua (runs inside ghostty, since
-    # it's a TUI app, not a standalone window like dolphin was). extraPackages
-    # are yazi's own documented optional dependencies for full preview
-    # support: ffmpeg (already in home.packages above) for video, poppler_utils
-    # for PDFs, resvg for SVGs, _7zz for archive listings, jq for JSON, fd and
-    # ripgrep for its filter/search. zsh integration wires up the `y` wrapper
-    # (cds the shell into wherever yazi was last, on quit).
-    yazi = {
-      enable = true;
-      enableZshIntegration = true;
-      extraPackages = [
-        pkgs._7zz
-        pkgs.jq
-        pkgs.poppler_utils
-        pkgs.fd
-        pkgs.ripgrep
-        pkgs.zoxide
-        pkgs.resvg
-      ];
-    };
-
-    # defaultEditor sets EDITOR/VISUAL to nvim (see sessionVariables above).
-    # VS Code stays installed for manual use; this only changes the terminal
-    # default.
-    neovim = {
-      enable = true;
-      defaultEditor = true;
-    };
-
-    ghostty = {
-      enable = true;
-      settings = {
-        # Ghostty's bundled themes are named after their upstream
-        # iterm2-color-schemes file, which uses title case and a space.
-        theme = "Catppuccin Mocha";
-        font-family = "JetBrainsMono Nerd Font";
-        window-padding-x = 10;
-        window-padding-y = 10;
-        window-decoration = false;
-      };
-    };
-
-    # Firefox is GTK3, so it already picks up the adw-gtk3-dark theme and
-    # Papirus icons below for its native chrome (dialogs, scrollbars). Its
-    # own tab/toolbar chrome is a separate layer, themed via userChrome on
-    # the profile below once there's a real stylesheet to put there.
+    # Firefox is GTK, so it picks up the Breeze GTK theme that plasma6's
+    # kde-gtk-config keeps in sync with the Plasma color scheme.
     firefox = {
       enable = true;
       profiles.igor = {
         isDefault = true;
-        # Mesa's radeonsi VA-API driver comes from hardware.graphics.enable
-        # in configuration.nix; this just tells Firefox to actually use it
+        # Mesa's radeonsi VA-API driver comes from hardware.graphics.enable in
+        # configuration.nix; this just tells Firefox to actually use it
         # instead of decoding video on the CPU.
         settings."media.ffmpeg.vaapi.enabled" = true;
       };
@@ -112,9 +54,7 @@
       enable = true;
       # No local-LLM extension here: Copilot Chat's own "Custom Endpoint"
       # model picker entry talks to llama.cpp's llama-server directly (see
-      # systemd.services.llama-cpp in configuration.nix for the connection
-      # details and why Ollama's own extension got dropped - chat only,
-      # never Agent mode).
+      # services.llama-cpp in configuration.nix for the connection details).
       profiles.default.userSettings = {
         "diffEditor.experimental.showMoves" = true;
         "diffEditor.renderSideBySide" = false;
@@ -130,19 +70,13 @@
         # weight (needs a full restart of VS Code to take effect).
         "window.controlsStyle" = "hidden";
       };
+      # VS Code writes both of these into argv.json on first run. Declaring
+      # them means it has no missing field to write back into what is now a
+      # read-only Nix-store symlink. crash-reporter-id is an
+      # install-correlation id, not a secret, but VS Code's own comment asks
+      # not to change it once assigned. Chromium's password-store is left
+      # undeclared so it auto-detects KWallet, which Plasma provides.
       argvSettings = {
-        # Plasma is a desktop environment Electron recognizes, so without
-        # this Chromium's keyring auto-detection would target KWallet
-        # instead of the Secret Service backend KeePassXC provides. This
-        # forces gnome-libsecret so tokens land in KeePassXC as intended
-        # (also needs a full VS Code restart).
-        "password-store" = "gnome-libsecret";
-        # VS Code writes both of these into argv.json itself on first run.
-        # Copied verbatim from igor-desktop's pre-Nix argv.json so VS Code
-        # has no missing fields to try to write back into what is now a
-        # read-only Nix-store symlink - crash-reporter-id in particular is
-        # only an install-correlation id, not a secret, but VS Code's own
-        # comment asks not to change it once assigned.
         "enable-crash-reporter" = true;
         "crash-reporter-id" = "6eeb860a-4e8d-482b-bae9-b6fd7c3f17dd";
       };
@@ -157,36 +91,6 @@
         add_newline = false;
         format = "$username$hostname$directory$git_branch$character";
       };
-    };
-  };
-
-  # GTK4/libadwaita apps ignore a full theme override (see the gtk.gtk4.theme
-  # warning in home-manager's own module), so only GTK3 gets one: adw-gtk3
-  # mimics libadwaita's look, keeping GTK3 and GTK4 apps consistent without
-  # fighting GTK4 for it. colorScheme and iconTheme apply to both versions.
-  gtk = {
-    enable = true;
-    theme = {
-      name = "adw-gtk3-dark";
-      package = pkgs.adw-gtk3;
-    };
-    iconTheme = {
-      name = "Papirus-Dark";
-      package = pkgs.papirus-icon-theme;
-    };
-    colorScheme = "dark";
-  };
-
-  xdg = {
-    autostart.enable = true;
-
-    # Equivalent to `xdg-mime default kwrite.desktop text/plain`, but
-    # declarative in mimeapps.list, so it survives rebuilds. Named explicitly
-    # (not via defaultApplicationPackages) since kate.desktop and
-    # kwrite.desktop ship in the same package and both claim text/plain.
-    mimeApps = {
-      enable = true;
-      defaultApplications."text/plain" = [ "kwrite.desktop" ];
     };
   };
 }
